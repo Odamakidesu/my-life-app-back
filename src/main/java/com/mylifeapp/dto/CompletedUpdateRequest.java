@@ -1,0 +1,13 @@
+package com.mylifeapp.dto;
+
+public class DeletedUpdateRequest {
+    private Boolean important;
+
+    public Boolean getImportant() {
+        return important;
+    }
+
+    public void setImportant(Boolean important) {
+        this.important = important;
+    }
+}
