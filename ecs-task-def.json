@@ -1,0 +1,35 @@
+{
+  "family": "my-life-app-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "mylifeapp",
+      "image": "498504718094.dkr.ecr.ap-northeast-1.amazonaws.com/my-life-app-back:latest",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/my-life-app-task",
+          "awslogs-region": "ap-northeast-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "environment": [
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "prod"
+        }
+      ]
+    }
+  ],
+  "executionRoleArn": "arn:aws:iam::498504718094:role/ecsTaskExecutionRole"
+}

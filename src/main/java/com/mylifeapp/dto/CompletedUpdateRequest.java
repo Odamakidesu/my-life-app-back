@@ -1,13 +1,13 @@
 package com.mylifeapp.dto;
 
-public class DeletedUpdateRequest {
+public class CompletedUpdateRequest {
     private Boolean important;
 
-    public Boolean getImportant() {
+    public Boolean getCompleted() {
         return important;
     }
 
-    public void setImportant(Boolean important) {
-        this.important = important;
+    public void setCompleted(Boolean completed) {
+        this.important = completed;
     }
 }
