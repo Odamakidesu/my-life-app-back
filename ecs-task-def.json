@@ -7,7 +7,7 @@
   "containerDefinitions": [
     {
       "name": "mylifeapp",
-      "image": "498504718094.dkr.ecr.ap-northeast-1.amazonaws.com/my-life-app-back:latest",
+      "image": "498504718094.dkr.ecr.ap-northeast-1.amazonaws.com/mylifeapp:latest",
       "portMappings": [
         {
           "containerPort": 8080,

@@ -43,6 +43,11 @@ jobs:
           docker tag $ECR_REPO:$IMAGE_TAG ${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:$IMAGE_TAG
           docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:$IMAGE_TAG
 
+      - name: Render imagedefinitions.json
+        run: |
+          echo '[{"name":"mylifeapp","imageUri":"498504718094.dkr.ecr.ap-northeast-1.amazonaws.com/mylifeapp:latest"}]' > imagedefinitions.json
+
+
       - name: Render new task definition
         id: render-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
@@ -54,7 +59,7 @@ jobs:
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME }}
           service: ${{ secrets.ECS_SERVICE_NAME }}
-          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
           wait-for-service-stability: true
