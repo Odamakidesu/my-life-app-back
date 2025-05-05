@@ -52,7 +52,7 @@ jobs:
           image: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:latest
 
       - name: Deploy to ECS
-        uses: aws-actions/amazon-ecs-deploy-service@v1.6.0
+        uses: aws-actions/amazon-ecs-deploy-service@v1
         with:
           cluster: ${{ secrets.ECS_CLUSTER_NAME }}
           service: ${{ secrets.ECS_SERVICE_NAME }}
