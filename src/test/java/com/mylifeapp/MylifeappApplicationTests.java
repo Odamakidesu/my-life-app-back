@@ -1,8 +1,8 @@
 package com.mylifeapp;
 
-import com.mylifeapp.repository.UserRepository;
-import com.mylifeapp.security.JwtAuthenticationFilter;
-import com.mylifeapp.service.CustomUserDetailsService;
+import com.mylifeapp.user.repository.UserRepository;
+import com.mylifeapp.auth.jwt.JwtAuthenticationFilter;
+import com.mylifeapp.auth.userdetails.CustomUserDetailsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
