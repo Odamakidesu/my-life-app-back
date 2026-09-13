@@ -20,8 +20,20 @@
         "options": {
           "awslogs-group": "/ecs/my-life-app-task",
           "awslogs-region": "ap-northeast-1",
-          "awslogs-stream-prefix": "ecs"
+          "awslogs-stream-prefix": "ecs",
+          "mode": "non-blocking",
+          "max-buffer-size": "4m"
         }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "wget -q -O - http://localhost:8080/actuator/health/readiness || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 90
       },
       "environment": [
         {
@@ -34,6 +46,30 @@
         },
         {
           "name": "SPRING_SQL_INIT_MODE",
+          "value": "never"
+        },
+        {
+          "name": "LOGGING_LEVEL_ROOT",
+          "value": "INFO"
+        },
+        {
+          "name": "LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_JDBC",
+          "value": "WARN"
+        },
+        {
+          "name": "LOGGING_STRUCTURED_FORMAT_CONSOLE",
+          "value": "ecs"
+        },
+        {
+          "name": "LOGGING_STRUCTURED_JSON_STACKTRACE_ROOT",
+          "value": "last"
+        },
+        {
+          "name": "LOGGING_STRUCTURED_JSON_STACKTRACE_MAX_LENGTH",
+          "value": "2048"
+        },
+        {
+          "name": "MANAGEMENT_ENDPOINT_HEALTH_SHOWDETAILS",
           "value": "never"
         }
       ],

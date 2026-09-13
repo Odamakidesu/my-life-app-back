@@ -1,0 +1,39 @@
+# ビルドコンテキストから除外するもの。
+#
+# 特に重要なのは application-local / application-prod の除外。
+# これらは .gitignore 対象だがローカルには実ファイルとして存在するため、
+# 除外しないとビルドコンテキストに入り、本番 RDS の資格情報が
+# イメージのレイヤに焼き込まれる。CI は当該ファイルを持たないので気づけない。
+
+# ローカル専用の設定（実際の資格情報を含む）
+src/main/resources/application-local.properties
+src/main/resources/application-prod.properties
+src/main/resources/application-dev.properties
+.env
+
+# ビルド成果物・キャッシュ
+build/
+bin/
+out/
+.gradle/
+
+# バージョン管理・エディタ・ツール
+.git/
+.gitignore
+.gitattributes
+.github/
+.idea/
+.vscode/
+.claude/
+docs/
+
+# テストはイメージに不要（イメージのビルド時も -x test で実行しない）
+src/test/
+
+# コンテナ定義そのもの
+Dockerfile
+.dockerignore
+docker-compose.yml
+compose.override.yml
+
+*.log

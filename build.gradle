@@ -1,6 +1,7 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.5'
+    id 'jacoco'
+    id 'org.springframework.boot' version '3.5.14'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -23,30 +24,89 @@ repositories {
     mavenCentral()
 }
 
+ext {
+    jjwtVersion = '0.12.6'
+    bucket4jVersion = '8.10.1'
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    // JWTライブラリ（jjwt）
-    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5' // JSONパーサ
-    implementation 'org.springframework.security:spring-security-crypto'
-    implementation 'jakarta.annotation:jakarta.annotation-api:2.1.1'
+
+    // JWTライブラリ（jjwt）。Spring Boot の BOM 管理外なので、ここが唯一のバージョン定義になる。
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}" // JSONパーサ
+
+    // ログイン/登録のレート制限。BCrypt のCPUコストを払う前にリクエストを落とすために使う。
+    implementation "com.bucket4j:bucket4j-core:${bucket4jVersion}"
+
+    // メトリクスのエクスポート先。これが無いと Micrometer の値はプロセス内に留まる。
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.springframework.security:spring-security-test'
-    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = true
+    }
+}
+
+// カバレッジ「率」ではなくリスクを縛る。全体率は歴史的負債に引きずられるため閾値にしない。
+// 認証・認可のクラスだけを分岐カバレッジで縛る。
+jacocoTestCoverageVerification {
+    dependsOn test
+    violationRules {
+        rule {
+            element = 'CLASS'
+            includes = [
+                    'com.mylifeapp.auth.jwt.*',
+                    'com.mylifeapp.auth.userdetails.*',
+                    'com.mylifeapp.common.security.*'
+            ]
+            excludes = ['*.*Properties', '*.*Result']
+            limit {
+                counter = 'BRANCH'
+                minimum = 0.70
+            }
+        }
+    }
+}
+check.dependsOn jacocoTestCoverageVerification
+
+// ローカル/本番のプロファイル設定は .gitignore 対象だが src/main/resources に置かれているため、
+// 手元でビルドすると jar に焼き込まれる（CI は当該ファイルが存在しないので影響しない）。
+// 手元で docker build して push した場合に資格情報入りのイメージが出来上がる経路を構造的に塞ぐ。
+// 本番の設定は ECS タスク定義の environment / secrets から注入されるため、成果物に含める必要はない。
+bootJar {
+    exclude 'application-local.properties'
+    exclude 'application-prod.properties'
+    exclude 'application-prod.properties.example'
 }
 
 // ソースは UTF-8 のため、JVM既定エンコーディングに依存せず明示的に固定する。

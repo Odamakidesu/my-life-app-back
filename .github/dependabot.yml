@@ -1,0 +1,23 @@
+version: 2
+
+# 依存の脆弱性を継続的に検知する。
+# 今回のレビューでは「Spring Boot 3.5.8 に未修正アドバイザリが3件残っている」状態を
+# 人手で見つけたが、それを毎回やるのは現実的ではない。
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      spring:
+        patterns:
+          - "org.springframework*"
+          - "io.spring*"
+
+  # ワークフローのアクションは SHA でピン止めしているため、
+  # Dependabot に更新させないと古いまま固定される。
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

@@ -1,0 +1,114 @@
+# ローカル検証用スタック（MySQL + バックエンド）。
+#
+# 目的は「AWS に上げる前に、本番と同じ形で動くことを手元で確かめる」こと。
+# そのため設定は本番（ECS タスク定義）と同じく環境変数で注入し、
+# アプリ側は本番と同一のコードパスを通る。
+#   - SPRING_SQL_INIT_MODE=never（本番と同じ。スキーマ投入は DB の初期化スクリプトが行う）
+#   - JWT_SECRET / SPRING_DATASOURCE_* を環境変数で注入
+#   - 非 root、MaxRAMPercentage 指定のイメージをそのまま使用
+#
+# 起動:   docker compose up -d --build
+# 停止:   docker compose down
+# 初期化: docker compose down -v   （DB のデータを捨ててシードからやり直す）
+#
+# 詳細は docs/local-stack.md を参照。
+
+name: mylifeapp
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: docker/mysql/Dockerfile
+    image: mylifeapp-db:local
+    container_name: mylifeapp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-localonly-root-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mylifeapp}
+      MYSQL_USER: ${MYSQL_USER:-mylifeapp}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-localonly-app-password}
+      TZ: Asia/Tokyo
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      # 既定を 13306 にしてあるのは、手元の MySQL(3306) と衝突させないため
+      - "${MYSQL_PORT:-13306}:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      # mysqladmin ping は初期化中の一時サーバにも応答してしまい、
+      # 「ping は通るのに接続すると落ちる」状態を「正常」と誤判定する。
+      # TCP 経由で実クエリを投げて、本番用サーバが起動しきったことを確認する。
+      test:
+        - CMD-SHELL
+        - mysql -h 127.0.0.1 -u root -p"$$MYSQL_ROOT_PASSWORD" -e 'SELECT 1' > /dev/null 2>&1
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  backend:
+    build:
+      context: .
+    image: mylifeapp-backend:local
+    container_name: mylifeapp-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        # healthy になるまで起動しない。ここを condition なしにすると、
+        # DB の初期化中にアプリが接続を試みて起動に失敗する。
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      TZ: Asia/Tokyo
+
+      # DB 接続。タイムアウトを明示しているのは、既定（0 = 無制限）のままだと
+      # DB が無応答になったときに Tomcat の全スレッドが滞留するため。本番と揃えてある。
+      SPRING_DATASOURCE_URL: >-
+        jdbc:mysql://db:3306/${MYSQL_DATABASE:-mylifeapp}?serverTimezone=Asia/Tokyo&useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=3000&socketTimeout=30000
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-mylifeapp}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-localonly-app-password}
+
+      # 本番と同じ。schema.sql の先頭は DROP TABLE であり、
+      # ここを always にするとアプリ再起動のたびにデータが消える。
+      SPRING_SQL_INIT_MODE: never
+
+      # ローカル専用の署名鍵。実在の環境の値とは無関係で、外部に出しても影響がない。
+      # 本番の鍵は SSM から注入される（docs/runbook-security-hardening.md 参照）。
+      # 上書きしたい場合は .env に JWT_SECRET を書く。
+      JWT_SECRET: ${JWT_SECRET:-local-docker-only-signing-key-not-for-any-real-environment-0123456789}
+
+      # CORS の許可オリジン。フロントエンドの開発サーバー（npm start）に合わせる。
+      APP_API_ENDPOINT_BASE_URL: ${FRONTEND_ORIGIN:-http://localhost:5173}
+
+      # --- 動作確認しやすくするための調整 ---------------------------------
+      # 手で何度もログインを試すとレート制限に掛かるため、ローカルでは緩める。
+      # 制限そのものの挙動を確かめたいときは .env で 10 などに戻すこと。
+      APP_RATE_LIMIT_LOGIN_CAPACITY: ${RATE_LIMIT_LOGIN_CAPACITY:-100}
+
+      # --- 本番との差分（必要なときだけ .env で有効化する） -----------------
+      # MANAGEMENT_ENDPOINT_HEALTH_SHOWDETAILS: always   # /actuator/health に詳細を出す
+      # LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_JDBC: DEBUG    # SQL とバインド値を出す（本番厳禁）
+      # LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs           # 本番と同じ JSON ログ形式にする
+    # 本番（ECS Fargate: cpu=512 = 0.5 vCPU / memory=1024MB）と同じ資源で動かす。
+    # 揃えないと JVM はホストのメモリを基準にヒープを決めてしまい（無制限だと実測 23GB）、
+    # 本番で起きる OOM や CPU 飽和が手元では一切再現しない。
+    # 開発中に重いと感じたら .env で BACKEND_CPUS / BACKEND_MEMORY を上げる。
+    cpus: ${BACKEND_CPUS:-0.5}
+    mem_limit: ${BACKEND_MEMORY:-1024m}
+    ports:
+      # 既定を 8081 にしてあるのは、手元の 8080 が別プロセスに使われているため
+      - "${BACKEND_PORT:-8081}:8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q -O - http://localhost:8080/actuator/health/readiness > /dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+volumes:
+  db-data:

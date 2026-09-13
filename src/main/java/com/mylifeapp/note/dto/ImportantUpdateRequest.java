@@ -1,13 +1,6 @@
 package com.mylifeapp.note.dto;
 
-public class ImportantUpdateRequest {
-    private Boolean important;
+import jakarta.validation.constraints.NotNull;
 
-    public Boolean getImportant() {
-        return important;
-    }
-
-    public void setImportant(Boolean important) {
-        this.important = important;
-    }
+public record ImportantUpdateRequest(@NotNull(message = "important は必須です") Boolean important) {
 }

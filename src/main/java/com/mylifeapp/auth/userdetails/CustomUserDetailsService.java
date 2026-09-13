@@ -1,13 +1,10 @@
 package com.mylifeapp.auth.userdetails;
 
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import com.mylifeapp.user.repository.UserRepository;
-import org.springframework.security.core.userdetails.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
@@ -20,13 +17,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        var appUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("ユーザーが見つかりません: " + username));
-
-        return new User(
-                appUser.getUsername(),
-                appUser.getPassword(),
-                List.of(new SimpleGrantedAuthority("USER"))
-        );
+        // UserPrincipal を返すことで enabled と role が DB の値を反映する。
+        // DaoAuthenticationProvider の PostAuthenticationChecks が enabled=false を弾くようになる。
+        return userRepository.findByUsername(username)
+                .map(UserPrincipal::new)
+                .orElseThrow(() -> new UsernameNotFoundException("ユーザーが見つかりません"));
     }
 }

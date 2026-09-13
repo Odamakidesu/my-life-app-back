@@ -1,13 +1,6 @@
 package com.mylifeapp.note.dto;
 
-public class PinnedUpdateRequest {
-    private Boolean pinned;
+import jakarta.validation.constraints.NotNull;
 
-    public Boolean getPinned() {
-        return pinned;
-    }
-
-    public void setPinned(Boolean pinned) {
-        this.pinned = pinned;
-    }
+public record PinnedUpdateRequest(@NotNull(message = "pinned は必須です") Boolean pinned) {
 }

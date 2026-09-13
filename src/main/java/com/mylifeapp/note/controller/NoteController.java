@@ -1,105 +1,106 @@
 package com.mylifeapp.note.controller;
 
-import com.mylifeapp.note.model.Note;
-import com.mylifeapp.note.repository.NoteRepository;
-import com.mylifeapp.note.dto.ImportantUpdateRequest;
-import com.mylifeapp.note.dto.PinnedUpdateRequest;
+import com.mylifeapp.auth.userdetails.UserPrincipal;
 import com.mylifeapp.note.dto.CompletedUpdateRequest;
 import com.mylifeapp.note.dto.DeletedUpdateRequest;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.mylifeapp.note.dto.ImportantUpdateRequest;
+import com.mylifeapp.note.dto.NoteCreateRequest;
+import com.mylifeapp.note.dto.NoteResponse;
+import com.mylifeapp.note.dto.NoteUpdateRequest;
+import com.mylifeapp.note.dto.PinnedUpdateRequest;
+import com.mylifeapp.note.service.NoteService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/notes")
 public class NoteController {
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-    private final NoteRepository noteRepository;
-    @Autowired
-    public NoteController(JdbcTemplate jdbcTemplate, NoteRepository noteRepository) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.noteRepository = noteRepository;
+
+    private final NoteService noteService;
+
+    public NoteController(NoteService noteService) {
+        this.noteService = noteService;
     }
-//    public NoteController(NoteRepository noteRepository) {
-//        this.noteRepository = noteRepository;
-//    }
-//    @GetMapping
-//    public List<String> getNotes() {
-//        return List.of("メモ1", "メモ2");
-//    }
-    // GET /api/notes：すべてのメモを取得
+
+    /**
+     * 自分のメモ一覧。
+     *
+     * <p>レスポンスは従来どおり JSON 配列のまま返し、総件数は X-Total-Count ヘッダに載せる。
+     * オブジェクトで包むと既存のフロントエンドが壊れるため。
+     */
     @GetMapping
-    public List<Note> getAllNotes() {
-        return noteRepository.findAllActiveNotes();
-        // repositoryにカスタムクエリを作成
-//        return StreamSupport.stream(noteRepository.findAll().spliterator(), false)
-//                .collect(Collectors.toList());
+    public ResponseEntity<List<NoteResponse>> getAllNotes(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "" + NoteService.DEFAULT_PAGE_SIZE) int size) {
+
+        Long userId = principal.getUserId();
+        List<NoteResponse> body = noteService.findActive(userId, page, size).stream()
+                .map(NoteResponse::from)
+                .toList();
+
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(noteService.countActive(userId)))
+                .body(body);
     }
 
-    // POST /api/notes：メモを追加
     @PostMapping
-    public Note createNote(@RequestBody Note note) {
-        return noteRepository.save(note);
-    }
-
-    // DELETE /api/notes/{id}：メモを削除
-    // 物理削除から論理削除に変更の過程で未使用になる。
-    @DeleteMapping("/{id}")
-    public void deleteNote(@PathVariable Long id) {
-        noteRepository.deleteById(id);
+    public ResponseEntity<NoteResponse> createNote(@AuthenticationPrincipal UserPrincipal principal,
+                                                   @Valid @RequestBody NoteCreateRequest request) {
+        NoteResponse created = NoteResponse.from(noteService.create(principal.getUserId(), request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    public Note updateNote(@PathVariable Long id, @RequestBody Note updatedNote) {
-        Note note = noteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("メモが見つかりませんでした: " + id));
-        note.setTitle(updatedNote.getTitle());
-        note.setContent(updatedNote.getContent());
-        note.setTags(updatedNote.getTags());
-        note.setDeadline(updatedNote.getDeadline());
-        return noteRepository.save(note);
+    public NoteResponse updateNote(@AuthenticationPrincipal UserPrincipal principal,
+                                   @PathVariable Long id,
+                                   @Valid @RequestBody NoteUpdateRequest request) {
+        return NoteResponse.from(noteService.update(principal.getUserId(), id, request));
     }
 
     @PutMapping("/{id}/important")
-    public ResponseEntity<Void> updateImportant(@PathVariable Long id, @RequestBody ImportantUpdateRequest request) {
-        jdbcTemplate.update(
-                "UPDATE note SET is_important = ? WHERE id = ?",
-                request.getImportant(), id
-        );
-
+    public ResponseEntity<Void> updateImportant(@AuthenticationPrincipal UserPrincipal principal,
+                                                @PathVariable Long id,
+                                                @Valid @RequestBody ImportantUpdateRequest request) {
+        noteService.setImportant(principal.getUserId(), id, request.important());
         return ResponseEntity.ok().build();
     }
+
     @PutMapping("/{id}/pinned")
-    public ResponseEntity<Void> updatePinned(@PathVariable Long id, @RequestBody PinnedUpdateRequest request) {
-        jdbcTemplate.update(
-                "UPDATE note SET is_pinned = ? WHERE id = ?",
-                request.getPinned(), id
-        );
+    public ResponseEntity<Void> updatePinned(@AuthenticationPrincipal UserPrincipal principal,
+                                             @PathVariable Long id,
+                                             @Valid @RequestBody PinnedUpdateRequest request) {
+        noteService.setPinned(principal.getUserId(), id, request.pinned());
         return ResponseEntity.ok().build();
     }
 
-    // メモを完了済にする
+    /** メモを完了済にする */
     @PutMapping("/{id}/completed")
-    public ResponseEntity<Void> updateCompleted(@PathVariable Long id, @RequestBody CompletedUpdateRequest request) {
-        jdbcTemplate.update(
-                "UPDATE note SET is_completed= ? WHERE id = ?",
-                request.getCompleted(), id
-        );
+    public ResponseEntity<Void> updateCompleted(@AuthenticationPrincipal UserPrincipal principal,
+                                                @PathVariable Long id,
+                                                @Valid @RequestBody CompletedUpdateRequest request) {
+        noteService.setCompleted(principal.getUserId(), id, request.completed());
         return ResponseEntity.ok().build();
     }
 
-    // DELETE /api/notes/{id}：メモを論理削除
+    /** メモを論理削除する */
     @PutMapping("/{id}/deleted")
-    public ResponseEntity<Void> updateNoteDelete(@PathVariable Long id, @RequestBody DeletedUpdateRequest request) {
-        jdbcTemplate.update(
-                "UPDATE note SET delete_flg = ? WHERE id = ?",
-                request.getDelete_flg(), id
-        );
-
+    public ResponseEntity<Void> updateNoteDelete(@AuthenticationPrincipal UserPrincipal principal,
+                                                 @PathVariable Long id,
+                                                 @Valid @RequestBody DeletedUpdateRequest request) {
+        noteService.setDeleted(principal.getUserId(), id, request.deleteFlg());
         return ResponseEntity.ok().build();
     }
 }

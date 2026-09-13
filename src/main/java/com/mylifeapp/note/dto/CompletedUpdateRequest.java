@@ -1,13 +1,7 @@
 package com.mylifeapp.note.dto;
 
-public class CompletedUpdateRequest {
-    private Boolean important;
+import jakarta.validation.constraints.NotNull;
 
-    public Boolean getCompleted() {
-        return important;
-    }
-
-    public void setCompleted(Boolean completed) {
-        this.important = completed;
-    }
+// 以前はフィールド名が important で getter だけ getCompleted という食い違いがあった。
+public record CompletedUpdateRequest(@NotNull(message = "completed は必須です") Boolean completed) {
 }
