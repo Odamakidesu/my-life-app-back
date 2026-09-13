@@ -25,7 +25,7 @@ repositories {
 }
 
 ext {
-    jjwtVersion = '0.12.6'
+    jjwtVersion = '0.13.0'
     bucket4jVersion = '8.10.1'
 }
 
