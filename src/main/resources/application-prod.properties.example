@@ -1,0 +1,13 @@
+# 本番設定のテンプレート。実値は入れないこと。
+#
+# 本番では application-prod.properties をリポジトリに置かず、
+# ECSタスク定義から環境変数として注入する（ecs-task-def.json を参照）。
+# Spring Boot の relaxed binding により、環境変数名はプロパティ名を
+# 大文字化しドットとハイフンをアンダースコアに置き換えたものが対応する。
+#
+#   app.api.endpoint.base-url   <- APP_API_ENDPOINT_BASE_URL
+#   spring.datasource.url       <- SPRING_DATASOURCE_URL
+#   spring.datasource.username  <- SPRING_DATASOURCE_USERNAME
+#   spring.datasource.password  <- SPRING_DATASOURCE_PASSWORD   (secrets)
+#   jwt.secret                  <- JWT_SECRET                   (secrets)
+#   spring.sql.init.mode        <- SPRING_SQL_INIT_MODE

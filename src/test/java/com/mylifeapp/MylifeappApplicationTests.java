@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Import;
 import static org.mockito.Mockito.mock;
 
 @SpringBootTest(properties = {
-        "jwt.secret=REDACTED-SECRET-WAS-ROTATED",
+        "jwt.secret=test-only-dummy-secret-do-not-use-in-any-real-environment-0123456789",
         "jwt.expiration-ms=86400000",
         "spring.main.allow-bean-definition-overriding=true" // ★これを追加
 })

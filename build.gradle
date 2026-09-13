@@ -48,3 +48,9 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// ソースは UTF-8 のため、JVM既定エンコーディングに依存せず明示的に固定する。
+// (ユーザー単位の gradle.properties で file.encoding=MS932 を指定しているため必須)
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

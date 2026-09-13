@@ -27,6 +27,32 @@
         {
           "name": "SPRING_PROFILES_ACTIVE",
           "value": "prod"
+        },
+        {
+          "name": "APP_API_ENDPOINT_BASE_URL",
+          "value": "http://my-life-app.s3-website-ap-northeast-1.amazonaws.com"
+        },
+        {
+          "name": "SPRING_SQL_INIT_MODE",
+          "value": "never"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "SPRING_DATASOURCE_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-1:498504718094:parameter/mylifeapp/prod/datasource-url"
+        },
+        {
+          "name": "SPRING_DATASOURCE_USERNAME",
+          "valueFrom": "arn:aws:ssm:ap-northeast-1:498504718094:parameter/mylifeapp/prod/datasource-username"
+        },
+        {
+          "name": "SPRING_DATASOURCE_PASSWORD",
+          "valueFrom": "arn:aws:ssm:ap-northeast-1:498504718094:parameter/mylifeapp/prod/datasource-password"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:ssm:ap-northeast-1:498504718094:parameter/mylifeapp/prod/jwt-secret"
         }
       ]
     }
