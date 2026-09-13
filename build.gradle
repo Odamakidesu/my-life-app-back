@@ -107,6 +107,7 @@ bootJar {
     exclude 'application-local.properties'
     exclude 'application-prod.properties'
     exclude 'application-prod.properties.example'
+    exclude 'application-local.properties.example'
 }
 
 // ソースは UTF-8 のため、JVM既定エンコーディングに依存せず明示的に固定する。

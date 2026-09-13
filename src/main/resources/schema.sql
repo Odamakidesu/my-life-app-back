@@ -1,3 +1,8 @@
+-- このファイルは UTF-8。送信するバイト列の解釈をサーバに明示する。
+-- これが無いと、mysql クライアントの既定文字セット（環境により latin1）で
+-- 解釈され、日本語が化けたまま保存される。実際に docker の初期化で発生した。
+SET NAMES utf8mb4;
+
 -- 開発用スキーマ。spring.sql.init.mode=always のときだけ実行される。
 -- 既定は never（application.properties）で、local プロファイルだけが always に上書きする。
 -- 本番では絶対に実行されない。本番のスキーマ変更は docs/runbook-security-hardening.md の手順に従うこと。

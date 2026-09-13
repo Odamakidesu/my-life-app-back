@@ -141,6 +141,58 @@ Git Bash など、シェルが UTF-8 以外で引数を渡していることが�
 サーバは不正なバイト列を正しく 400 で弾いている。
 ファイルに UTF-8 で書いて `--data-binary @file.json` で送ること。
 
+## Docker を使わず、手元の MySQL で動かす場合
+
+IDE から直接起動する場合など、Docker スタックを使わない運用も残してある。
+その場合の接続先は `src/main/resources/application-local.properties`（.gitignore 対象）に書く。
+ひな形は `application-local.properties.example` をコピーして使う。
+
+```bash
+cp src/main/resources/application-local.properties.example \n   src/main/resources/application-local.properties
+# 接続先と jwt.secret を書き換える
+```
+
+### スキーマとシードの投入
+
+`spring.sql.init.mode` は **`never`** にしてある。`always` にすると
+起動のたびに `schema.sql` の `DROP TABLE` が走り、自分で作ったメモが毎回消える。
+エラーにならないので気づきにくく、気づいた時には戻せない。
+
+投入し直したいときだけ明示的に実行する。
+
+```bash
+./scripts/reseed-local-db.sh          # 確認プロンプトあり
+./scripts/reseed-local-db.sh --yes    # 確認なし
+```
+
+このスクリプトは接続先を `application-local.properties` から読み、
+`schema.sql` → `data.sql` を流したあと、**件数だけでなく文字化けの有無まで検証する**。
+文字化けしても INSERT は成功するため、件数の確認だけでは検知できない。
+
+その場かぎりで投入したい場合は起動時に上書きしてもよい。
+
+```bash
+./gradlew bootRun --args='--spring.sql.init.mode=always'
+```
+
+空の DB に対して `never` のまま起動すると
+`Table 'mylifeapp.note' doesn't exist` で失敗する。その場合も上のコマンドで投入する。
+
+### 文字コードについて
+
+`schema.sql` / `data.sql` は UTF-8 で、先頭に `SET NAMES utf8mb4;` がある。
+これが無いと、読み込む側の既定文字コード次第で日本語が化けたまま保存される。
+実際に次の2通りで発生した。
+
+| 経路 | 化けた原因 | 対策 |
+|---|---|---|
+| Spring の `spring.sql.init` | `spring.sql.init.encoding` 未指定で JVM 既定（MS932）で読んでいた | `application.properties` に `spring.sql.init.encoding=UTF-8` |
+| MySQL の初期化スクリプト | mysql クライアントの既定文字セットが latin1 だった | SQL 先頭の `SET NAMES utf8mb4;` と `docker/mysql/my.cnf` |
+
+どちらも「DB には正しい UTF-8 として化けた文字が保存される」ため、
+接続やテーブルの文字セットを調べても原因に辿り着かない。
+`SeedDataEncodingTest` が投入結果を検証しているので、再発すればテストが落ちる。
+
 ## イメージについて
 
 `Dockerfile` はマルチステージで、イメージの中でソースから jar を作る。

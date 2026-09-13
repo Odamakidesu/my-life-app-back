@@ -313,8 +313,35 @@ Settings → Branches → `main` のルールで:
    （レート制限を入れたので、測定時は `APP_RATE_LIMIT_ENABLED=false` にするか上限値を上げる）
 2. **実効ヒープ上限** — 稼働中コンテナで `jcmd 1 VM.flags | grep MaxHeapSize` を確認し、
    1024MB に対して約 716MB になっていること（変更前は 256MB）。
-3. **`/api/notes` のレイテンシの行数依存** — `user_id` 条件とページネーションが入ったので、
-   メモ件数が増えても線形に伸びないことを確認する。
+3. **`/api/notes` のレイテンシの行数依存** — 測定済み。下記参照。
+
+### 測定済み: 一覧クエリの索引利用（note 5万行, MySQL 8.0.42）
+
+`user_id` 条件と複合インデックス `idx_note_user_active (user_id, delete_flg, created_at)`、
+およびページネーションを入れた効果を実測した。
+
+| クエリ | 実行計画 | 走査行数 | 実測時間 |
+|---|---|---|---|
+| 修正前: `WHERE delete_flg = false`（所有者条件なし・LIMIT なし） | `type=ALL` / `key=NULL` | 45,010 | 16.5 ms |
+| 修正後: `WHERE user_id=? AND delete_flg=false ORDER BY created_at DESC LIMIT 100` | `type=ref` / `key=idx_note_user_active` / **Backward index scan** | 100 | **0.21 ms** |
+
+`ORDER BY created_at DESC` はインデックスを逆方向に辿って解決されるため、
+**filesort が発生しない**。これが列順を `(user_id, delete_flg, created_at)` にした理由。
+
+注意点が1つある。深いページは OFFSET の分だけ読み飛ばすコストが残る。
+
+| ページ | 走査行数 | 実測時間 |
+|---|---|---|
+| `LIMIT 100 OFFSET 0` | 100 | 0.21 ms |
+| `LIMIT 100 OFFSET 10000`（101ページ目） | 10,100 | 8.6 ms |
+
+1ユーザーあたり数万件に達する見込みが出てきたら、OFFSET ではなく
+`WHERE (created_at, id) < (?, ?)` 形式のキーセットページネーションへ移すこと。
+現在の想定データ量では問題にならない。
+
+なお行数が少ないうちは `EXPLAIN` が `type=ALL` を返す。
+これは異常ではなく、小さなテーブルでは全走査の方が速いとオプティマイザが判断するため。
+索引設計の検証は、上記のように十分な行数を入れてから行う必要がある。
 
 ---
 

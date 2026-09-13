@@ -11,3 +11,6 @@ FROM mysql:8.0.42
 
 COPY src/main/resources/schema.sql /docker-entrypoint-initdb.d/01-schema.sql
 COPY src/main/resources/data.sql   /docker-entrypoint-initdb.d/02-data.sql
+
+# 文字セットの既定値。初期化スクリプトを実行する mysql クライアントにも効かせる。
+COPY docker/mysql/my.cnf /etc/mysql/conf.d/charset.cnf

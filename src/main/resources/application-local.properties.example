@@ -1,0 +1,49 @@
+# ローカル開発用設定のひな形。
+#
+#   cp application-local.properties.example application-local.properties
+#
+# 実ファイル (application-local.properties) は .gitignore 対象。
+# 本番の鍵やパスワードは絶対に書かないこと。ここに書く値はすべてローカル専用。
+
+# --- 接続先 ----------------------------------------------------------------
+# CORS で許可するフロントエンドのオリジン。
+# フロントは npm start で 5173 番を使う（my-life-app-front/.env.development）
+app.api.endpoint.base-url=http://localhost:5173
+
+spring.datasource.url=jdbc:mysql://localhost:3306/mylifeapp?serverTimezone=Asia/Tokyo&useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=3000&socketTimeout=30000
+spring.datasource.username=CHANGE_ME
+spring.datasource.password=CHANGE_ME
+
+# --- JWT --------------------------------------------------------------------
+# ローカル専用に新規生成すること。本番の値を持ってこない。
+# HS256 の要件で 32 バイト以上が必要。短いと起動時に WeakKeyException で失敗する。
+#   生成例: openssl rand -base64 48
+jwt.secret=CHANGE_ME_local_only_at_least_32_bytes_long_0123456789abcdef
+
+# --- ポート -----------------------------------------------------------------
+# 8080 が別プロセスに使われている場合に変更する
+server.port=8081
+
+# ============================================================================
+# ここから下はローカル開発専用の上書き。
+# 基底 (application.properties) は本番として安全な既定値を持つので、
+# 開発に必要な緩和はこのファイルだけで行う。
+# ============================================================================
+
+# スキーマとシードの投入は「明示的に実行したときだけ」にする。
+# always にすると起動のたびに schema.sql の DROP TABLE が走り、
+# 自分で作ったメモが毎回消える。気づきにくく、気づいた時には戻せない。
+#
+# 投入し直したいときは次のどちらか:
+#   ./scripts/reseed-local-db.sh                              （推奨。投入後に検証まで行う）
+#   ./gradlew bootRun --args='--spring.sql.init.mode=always'   （その起動のときだけ投入する）
+spring.sql.init.mode=never
+
+# SQL とバインド値を見るための設定。バインド値にはパスワードハッシュやメモ本文が含まれる。
+# 本番で有効にすると CloudWatch Logs に個人データが全量流出する。
+logging.level.org.springframework.jdbc=DEBUG
+logging.level.org.springframework.jdbc.core.JdbcTemplate=DEBUG
+logging.level.org.springframework.jdbc.core.StatementCreatorUtils=TRACE
+
+# ローカルでは Actuator の詳細を見たい
+management.endpoint.health.show-details=always
