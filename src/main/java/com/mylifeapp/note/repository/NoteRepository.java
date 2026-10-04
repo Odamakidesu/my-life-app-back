@@ -1,6 +1,6 @@
 package com.mylifeapp.note.repository;
 
-import com.mylifeapp.note.model.Note;
+import com.mylifeapp.note.entity.Note;
 import org.springframework.data.jdbc.repository.query.Modifying;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;

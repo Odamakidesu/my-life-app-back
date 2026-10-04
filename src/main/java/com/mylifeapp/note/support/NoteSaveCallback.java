@@ -1,6 +1,6 @@
 package com.mylifeapp.note.support;
 
-import com.mylifeapp.note.model.Note;
+import com.mylifeapp.note.entity.Note;
 import org.springframework.data.relational.core.conversion.MutableAggregateChange;
 import org.springframework.data.relational.core.mapping.event.BeforeSaveCallback;
 import org.springframework.stereotype.Component;

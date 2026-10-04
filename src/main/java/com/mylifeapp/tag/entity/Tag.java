@@ -1,4 +1,4 @@
-package com.mylifeapp.tag.model;
+package com.mylifeapp.tag.entity;
 
 import lombok.Getter;
 import lombok.Setter;

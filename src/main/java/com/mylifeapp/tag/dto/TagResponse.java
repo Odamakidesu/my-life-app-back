@@ -1,6 +1,6 @@
 package com.mylifeapp.tag.dto;
 
-import com.mylifeapp.tag.model.Tag;
+import com.mylifeapp.tag.entity.Tag;
 
 /**
  * タグのレスポンス。

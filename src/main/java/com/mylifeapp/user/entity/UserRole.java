@@ -1,4 +1,4 @@
-package com.mylifeapp.user.model;
+package com.mylifeapp.user.entity;
 
 public enum UserRole {
     USER,

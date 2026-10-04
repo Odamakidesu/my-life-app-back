@@ -1,6 +1,6 @@
 package com.mylifeapp.tag.service;
 
-import com.mylifeapp.tag.model.Tag;
+import com.mylifeapp.tag.entity.Tag;
 import com.mylifeapp.tag.repository.TagRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

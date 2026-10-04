@@ -1,6 +1,6 @@
 package com.mylifeapp.tag.support;
 
-import com.mylifeapp.tag.model.Tag;
+import com.mylifeapp.tag.entity.Tag;
 import org.springframework.data.relational.core.conversion.MutableAggregateChange;
 import org.springframework.data.relational.core.mapping.event.BeforeSaveCallback;
 import org.springframework.stereotype.Component;

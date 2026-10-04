@@ -1,6 +1,6 @@
 package com.mylifeapp.user.repository;
 
-import com.mylifeapp.user.model.User;
+import com.mylifeapp.user.entity.User;
 import org.springframework.data.repository.CrudRepository;
 
 import java.util.Optional;

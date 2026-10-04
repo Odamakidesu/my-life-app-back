@@ -1,8 +1,8 @@
 package com.mylifeapp.auth.jwt;
 
 import com.mylifeapp.auth.userdetails.UserPrincipal;
-import com.mylifeapp.user.model.User;
-import com.mylifeapp.user.model.UserRole;
+import com.mylifeapp.user.entity.User;
+import com.mylifeapp.user.entity.UserRole;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

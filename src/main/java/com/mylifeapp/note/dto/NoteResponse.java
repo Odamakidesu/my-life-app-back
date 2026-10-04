@@ -1,7 +1,7 @@
 package com.mylifeapp.note.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.mylifeapp.note.model.Note;
+import com.mylifeapp.note.entity.Note;
 
 import java.time.LocalDateTime;
 
