@@ -187,4 +187,25 @@ class NoteApiContractTest extends AbstractIntegrationTest {
                 String.class, noteId);
         assertThat(fromResponse).isEqualTo(fromDatabase);
     }
+
+    @Test
+    @DisplayName("タイトルはフロントと同じく50文字まで受け付け、51文字は400を返す")
+    void titleLengthLimitMatchesFrontend() throws Exception {
+        // フロントの TITLE_MAX_LENGTH（features/note/types/schema.ts）と揃えている。
+        // 以前はサーバ側だけ 255 で、API を直接叩くと画面では作れない長さが保存できた。
+        String token = tokenFor("contract-title-length");
+        String fifty = "あ".repeat(50);
+
+        mockMvc.perform(post("/api/notes")
+                        .header("Authorization", bearer(token))
+                        .contentType("application/json")
+                        .content("{\"title\":\"" + fifty + "\",\"content\":\"c\",\"tags\":\"\",\"deadline\":\"\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/notes")
+                        .header("Authorization", bearer(token))
+                        .contentType("application/json")
+                        .content("{\"title\":\"" + fifty + "あ\",\"content\":\"c\",\"tags\":\"\",\"deadline\":\"\"}"))
+                .andExpect(status().isBadRequest());
+    }
 }
