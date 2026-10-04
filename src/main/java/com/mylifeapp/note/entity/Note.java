@@ -1,4 +1,4 @@
-package com.mylifeapp.note.model;
+package com.mylifeapp.note.entity;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,6 +1,6 @@
 package com.mylifeapp.tag.controller;
 
-import com.mylifeapp.tag.model.Tag;
+import com.mylifeapp.tag.entity.Tag;
 import com.mylifeapp.tag.service.TagService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

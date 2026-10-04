@@ -1,7 +1,7 @@
 package com.mylifeapp.user.dto;
 
-import com.mylifeapp.user.model.User;
-import com.mylifeapp.user.model.UserRole;
+import com.mylifeapp.user.entity.User;
+import com.mylifeapp.user.entity.UserRole;
 
 /**
  * ユーザーのレスポンス。

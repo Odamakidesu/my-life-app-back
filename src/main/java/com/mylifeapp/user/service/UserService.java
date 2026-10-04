@@ -2,8 +2,8 @@ package com.mylifeapp.user.service;
 
 import com.mylifeapp.user.exception.DuplicateUsernameException;
 import com.mylifeapp.user.exception.UserNotFoundException;
-import com.mylifeapp.user.model.User;
-import com.mylifeapp.user.model.UserRole;
+import com.mylifeapp.user.entity.User;
+import com.mylifeapp.user.entity.UserRole;
 import com.mylifeapp.user.repository.UserRepository;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;

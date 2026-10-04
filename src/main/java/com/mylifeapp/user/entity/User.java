@@ -1,6 +1,6 @@
-package com.mylifeapp.user.model;
+package com.mylifeapp.user.entity;
 
-import com.mylifeapp.user.model.UserRole;
+import com.mylifeapp.user.entity.UserRole;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;

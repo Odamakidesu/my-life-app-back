@@ -1,7 +1,7 @@
 package com.mylifeapp.auth.userdetails;
 
-import com.mylifeapp.user.model.User;
-import com.mylifeapp.user.model.UserRole;
+import com.mylifeapp.user.entity.User;
+import com.mylifeapp.user.entity.UserRole;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

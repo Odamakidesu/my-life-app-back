@@ -3,7 +3,7 @@ package com.mylifeapp.note.service;
 import com.mylifeapp.note.dto.NoteCreateRequest;
 import com.mylifeapp.note.dto.NoteUpdateRequest;
 import com.mylifeapp.note.exception.NoteNotFoundException;
-import com.mylifeapp.note.model.Note;
+import com.mylifeapp.note.entity.Note;
 import com.mylifeapp.note.repository.NoteRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

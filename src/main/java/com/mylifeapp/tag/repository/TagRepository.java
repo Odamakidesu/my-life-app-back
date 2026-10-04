@@ -1,6 +1,6 @@
 package com.mylifeapp.tag.repository;
 
-import com.mylifeapp.tag.model.Tag;
+import com.mylifeapp.tag.entity.Tag;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
