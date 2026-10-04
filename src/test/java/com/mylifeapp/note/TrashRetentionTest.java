@@ -56,7 +56,7 @@ class TrashRetentionTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("保持期間を過ぎたゴミ箱のメモだけが自動で完全に削除される")
     void purgesExpiredTrash() throws Exception {
-        String token = token("trash-purge");
+        String token = token("trash-retention-purge");
         long expired = createNote(token, "期限切れのゴミ", "仕事", null, null);
         long recent = createNote(token, "最近のゴミ", "", null, null);
         long active = createNote(token, "一覧のメモ", "", null, null);

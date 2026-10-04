@@ -100,8 +100,9 @@ public class NoteQueryRepository {
         }
         if (!criteria.tags().isEmpty()) {
             // 指定したタグをすべて持つメモ。名前の比較は tags.name の照合順序（大文字小文字を区別しない）に従う。
-            sql.append("""
-                     AND n.id IN (
+            // テキストブロックは共通の字下げを取り除くため、先頭の空白は文字列の外で付ける
+            sql.append(" ").append("""
+                    AND n.id IN (
                         SELECT nt.note_id FROM note_tags nt JOIN tags t ON t.id = nt.tag_id
                         WHERE t.name IN (:tagNames)
                         GROUP BY nt.note_id

@@ -34,7 +34,7 @@ class NoteSearchTest extends AbstractIntegrationTest {
                 .andExpect(header().string("X-Total-Count", "1"))
                 .andExpect(jsonPath("$[*].title", contains("Apple pie")));
 
-        mockMvc.perform(get("/api/notes?q=%25").header("Authorization", bearer(token)))
+        mockMvc.perform(get("/api/notes").param("q", "%").header("Authorization", bearer(token)))
                 .andExpect(jsonPath("$[*].title", contains("100% juice")));
     }
 
