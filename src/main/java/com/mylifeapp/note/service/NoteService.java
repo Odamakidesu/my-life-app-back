@@ -44,6 +44,19 @@ public class NoteService {
         return noteRepository.countActiveByUserId(userId);
     }
 
+    /** ゴミ箱の一覧。ページングの扱いは {@link #findActive} と同じ。 */
+    @Transactional(readOnly = true)
+    public List<Note> findDeleted(Long userId, int page, int size) {
+        int effectiveSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        long offset = (long) Math.max(page, 0) * effectiveSize;
+        return noteRepository.findDeletedByUserId(userId, effectiveSize, offset);
+    }
+
+    @Transactional(readOnly = true)
+    public long countDeleted(Long userId) {
+        return noteRepository.countDeletedByUserId(userId);
+    }
+
     @Transactional
     public Note create(Long userId, NoteCreateRequest request) {
         Note note = new Note();
@@ -86,6 +99,15 @@ public class NoteService {
     @Transactional
     public void setDeleted(Long userId, Long id, boolean value) {
         requireUpdated(noteRepository.updateDeleteFlg(id, userId, value), id);
+    }
+
+    /**
+     * ゴミ箱にあるメモを完全に削除する。
+     * ゴミ箱に無い（有効な）メモ・他人のメモ・存在しないメモは区別せず 404 にする。
+     */
+    @Transactional
+    public void deletePermanently(Long userId, Long id) {
+        requireUpdated(noteRepository.deletePermanently(id, userId), id);
     }
 
     @Transactional(readOnly = true)
