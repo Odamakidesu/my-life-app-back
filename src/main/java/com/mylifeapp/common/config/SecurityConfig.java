@@ -1,6 +1,6 @@
 package com.mylifeapp.common.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.mylifeapp.auth.jwt.JwtAuthenticationFilter;
 import com.mylifeapp.auth.jwt.JwtTokenProvider;
 import com.mylifeapp.auth.userdetails.CustomUserDetailsService;

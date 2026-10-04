@@ -1,6 +1,6 @@
 package com.mylifeapp.common.ratelimit;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.mylifeapp.common.observability.TraceIds;
 import com.mylifeapp.common.web.ApiError;
 import io.github.bucket4j.Bandwidth;

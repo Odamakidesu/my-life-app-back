@@ -1,14 +1,14 @@
 package com.mylifeapp.support;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,10 +24,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 public abstract class AbstractIntegrationTest {
 
-    private static final MySQLContainer<?> MYSQL;
+    private static final MySQLContainer MYSQL;
 
     static {
-        MYSQL = new MySQLContainer<>(DockerImageName.parse("mysql:8.0.42"))
+        MYSQL = new MySQLContainer(DockerImageName.parse("mysql:8.0.42"))
                 .withDatabaseName("mylifeapp_test");
         MYSQL.start();
     }
@@ -62,7 +62,7 @@ public abstract class AbstractIntegrationTest {
                         .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(body).get("token").asText();
+        return objectMapper.readTree(body).get("token").asString();
     }
 
     protected String bearer(String token) {

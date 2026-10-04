@@ -1,6 +1,7 @@
 package com.mylifeapp.common.ratelimit;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
@@ -19,9 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class RateLimitFilterTest {
 
-    // 本番では Spring が構成した ObjectMapper（JSR-310 モジュール込み）が注入される。
-    // テストで素の ObjectMapper を使うと Instant を書けないため、同等の構成にしておく。
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    // 本番では Spring が構成した JsonMapper が注入される。
+    // Jackson 3 は java.time を標準で扱えるため、素の JsonMapper でも Instant を書ける。
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     private RateLimitFilter filter(boolean enabled, int loginCapacity, int maxTracked) {
         return new RateLimitFilter(
