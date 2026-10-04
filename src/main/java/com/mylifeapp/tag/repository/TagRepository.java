@@ -71,4 +71,16 @@ public interface TagRepository extends CrudRepository<Tag, Long> {
     int softDeleteOwned(@Param("id") Long id,
                         @Param("userId") Long userId,
                         @Param("updatedAt") LocalDateTime updatedAt);
+
+    /**
+     * メモに付けるタグ名を ID に解決する。見えるタグ（共通・自分）を優先し、無ければ削除済みのタグを使う。
+     * 削除済みのタグを使うのは、削除したタグ名が残ったメモを編集して保存しても名前が変わらないようにするため。
+     */
+    @Query("""
+            SELECT * FROM tags
+            WHERE (user_id IS NULL OR user_id = :userId) AND name = :name
+            ORDER BY delete_flg, id
+            LIMIT 1
+            """)
+    Optional<Tag> findResolvable(@Param("userId") Long userId, @Param("name") String name);
 }

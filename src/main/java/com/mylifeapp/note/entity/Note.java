@@ -47,10 +47,17 @@ public class Note {
     @Column("delete_flg")
     private Boolean deleteFlg = false;
 
+    /** ゴミ箱に入れた日時。ゴミ箱に無いメモは NULL。一定期間を過ぎると TrashPurgeJob が完全に削除する。 */
+    @Column("deleted_at")
+    private LocalDateTime deletedAt;
+
     @Column("created_at")
     private LocalDateTime createdAt;
 
     private LocalDateTime deadline;
+
+    /** 繰り返しの間隔。NULL は繰り返さない。締切のあるメモにだけ設定できる。 */
+    private Recurrence recurrence;
 
     public Note() {
     }

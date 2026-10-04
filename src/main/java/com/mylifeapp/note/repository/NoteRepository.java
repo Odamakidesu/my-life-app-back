@@ -7,6 +7,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,39 +17,19 @@ import java.util.Optional;
  * <p>所有者チェックはコントローラの if 文ではなく、ここのクエリ条件で強制する。
  * 個別に守る設計は必ず漏れる。すべての読み書きに user_id 条件を含め、
  * 更新系は「更新件数」を返して 0 件を 404 として扱えるようにする。
+ *
+ * <p>条件が利用者の指定で変わる一覧（検索・絞り込み・並べ替え）は {@link NoteQueryRepository} が持つ。
  */
 @Repository
 public interface NoteRepository extends CrudRepository<Note, Long> {
 
     /**
-     * 自分の有効なメモを取得する。
-     *
-     * <p>LIMIT / OFFSET を必ず付ける。以前は条件が delete_flg だけで LIMIT も無く、
-     * EXPLAIN が type=ALL（フルスキャン）を示していた。
-     * インデックス idx_note_user_active (user_id, delete_flg, created_at) が効く形にしてある。
-     */
-    @Query("""
-            SELECT * FROM note
-            WHERE user_id = :userId AND delete_flg = false
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit OFFSET :offset
-            """)
-    List<Note> findActiveByUserId(@Param("userId") Long userId,
-                                  @Param("limit") int limit,
-                                  @Param("offset") long offset);
-
-    @Query("SELECT COUNT(*) FROM note WHERE user_id = :userId AND delete_flg = false")
-    long countActiveByUserId(@Param("userId") Long userId);
-
-    /**
-     * ゴミ箱（自分の論理削除済みメモ）を取得する。
-     *
-     * <p>有効なメモの一覧と同じく idx_note_user_active (user_id, delete_flg, created_at) が効く。
+     * ゴミ箱（自分の論理削除済みメモ）を、ゴミ箱に入れた日時の新しい順に取得する。
      */
     @Query("""
             SELECT * FROM note
             WHERE user_id = :userId AND delete_flg = true
-            ORDER BY created_at DESC, id DESC
+            ORDER BY deleted_at DESC, id DESC
             LIMIT :limit OFFSET :offset
             """)
     List<Note> findDeletedByUserId(@Param("userId") Long userId,
@@ -71,7 +52,8 @@ public interface NoteRepository extends CrudRepository<Note, Long> {
      */
     @Modifying
     @Query("""
-            UPDATE note SET title = :title, content = :content, tags = :tags, deadline = :deadline
+            UPDATE note SET title = :title, content = :content, tags = :tags, deadline = :deadline,
+                            recurrence = :recurrence
             WHERE id = :id AND user_id = :userId
             """)
     int updateContent(@Param("id") Long id,
@@ -79,7 +61,8 @@ public interface NoteRepository extends CrudRepository<Note, Long> {
                       @Param("title") String title,
                       @Param("content") String content,
                       @Param("tags") String tags,
-                      @Param("deadline") java.time.LocalDateTime deadline);
+                      @Param("deadline") LocalDateTime deadline,
+                      @Param("recurrence") String recurrence);
 
     @Modifying
     @Query("UPDATE note SET is_important = :value WHERE id = :id AND user_id = :userId")
@@ -93,9 +76,24 @@ public interface NoteRepository extends CrudRepository<Note, Long> {
     @Query("UPDATE note SET is_completed = :value WHERE id = :id AND user_id = :userId")
     int updateCompleted(@Param("id") Long id, @Param("userId") Long userId, @Param("value") boolean value);
 
+    /** 繰り返しを次回分へ引き継いだあと、完了にした側の繰り返しを外す（二重に作らないため）。 */
     @Modifying
-    @Query("UPDATE note SET delete_flg = :value WHERE id = :id AND user_id = :userId")
-    int updateDeleteFlg(@Param("id") Long id, @Param("userId") Long userId, @Param("value") boolean value);
+    @Query("UPDATE note SET recurrence = NULL WHERE id = :id AND user_id = :userId")
+    int clearRecurrence(@Param("id") Long id, @Param("userId") Long userId);
+
+    /**
+     * ゴミ箱へ入れる・戻す。入れた日時を一緒に記録し、戻したら消す。
+     * 既にゴミ箱にあるメモへもう一度 true を送っても、入れた日時は変えない（保持期間が延びないように）。
+     */
+    @Modifying
+    @Query("""
+            UPDATE note
+            SET deleted_at = CASE WHEN :value THEN COALESCE(deleted_at, :now) ELSE NULL END,
+                delete_flg = :value
+            WHERE id = :id AND user_id = :userId
+            """)
+    int updateDeleteFlg(@Param("id") Long id, @Param("userId") Long userId,
+                        @Param("value") boolean value, @Param("now") LocalDateTime now);
 
     /**
      * ゴミ箱にあるメモを物理削除する。
@@ -109,9 +107,18 @@ public interface NoteRepository extends CrudRepository<Note, Long> {
     int deletePermanently(@Param("id") Long id, @Param("userId") Long userId);
 
     /**
+     * 保持期間を過ぎたゴミ箱のメモを全利用者分まとめて物理削除する（TrashPurgeJob）。
+     * idx_note_trash (delete_flg, deleted_at) が効く。対応する note_tags は外部キーの ON DELETE CASCADE で消える。
+     */
+    @Modifying
+    @Query("DELETE FROM note WHERE delete_flg = true AND deleted_at < :threshold")
+    int purgeDeletedBefore(@Param("threshold") LocalDateTime threshold);
+
+    /**
      * タグ名を含み得る自分のメモ（論理削除済みも含む）。
      *
-     * <p>LIKE は候補の絞り込みにだけ使う。名前に % や _ が含まれると余分に拾うが、
+     * <p>note.tags は旧版へ戻せるように書き続けている写し（正は note_tags）。改名時にこの写しも直すために使う。
+     * LIKE は候補の絞り込みにだけ使う。名前に % や _ が含まれると余分に拾うが、
      * 呼び出し側でカンマ区切りの要素ごとに完全一致で判定し直すので結果は変わらない。
      */
     @Query("SELECT * FROM note WHERE user_id = :userId AND tags LIKE CONCAT('%', :name, '%')")

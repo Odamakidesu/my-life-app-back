@@ -29,6 +29,11 @@ public class UserPrincipal implements UserDetails {
         return user.getId();
     }
 
+    /** 発行するトークンに埋め込み、受け取ったトークンと照合する版。 */
+    public int getTokenVersion() {
+        return user.getTokenVersion();
+    }
+
     public UserRole getRole() {
         return user.getRole() == null ? UserRole.USER : user.getRole();
     }

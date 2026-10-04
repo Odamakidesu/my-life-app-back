@@ -3,6 +3,8 @@ package com.mylifeapp.auth.jwt;
 import com.mylifeapp.auth.userdetails.UserPrincipal;
 import com.mylifeapp.user.entity.User;
 import com.mylifeapp.user.entity.UserRole;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,7 +16,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,7 +38,18 @@ class JwtAuthenticationFilterTest {
     private final JwtTokenProvider tokenProvider =
             new JwtTokenProvider(new JwtProperties(SECRET, 86_400_000L));
 
+    /** alice のトークンの現在の版（パスワード変更で進む） */
+    private int aliceTokenVersion = 0;
+
+    /** ログアウトで無効にした jti */
+    private final Set<String> revoked = new HashSet<>();
+
     private final UserDetailsService userDetailsService = username -> {
+        if ("bob".equals(username)) {
+            // UserPrincipal 以外の UserDetails（版を持たない）。版の照合は行わない。
+            return org.springframework.security.core.userdetails.User.withUsername("bob")
+                    .password("irrelevant").roles("USER").build();
+        }
         if (!"alice".equals(username)) {
             throw new UsernameNotFoundException("ユーザーが見つかりません");
         }
@@ -42,11 +59,12 @@ class JwtAuthenticationFilterTest {
         user.setPassword("irrelevant");
         user.setEnabled(true);
         user.setRole(UserRole.USER);
+        user.setTokenVersion(aliceTokenVersion);
         return new UserPrincipal(user);
     };
 
     private final JwtAuthenticationFilter filter =
-            new JwtAuthenticationFilter(tokenProvider, userDetailsService);
+            new JwtAuthenticationFilter(tokenProvider, userDetailsService, revoked::contains);
 
     @AfterEach
     void clearContext() {
@@ -127,5 +145,60 @@ class JwtAuthenticationFilterTest {
         run("Bearer " + token);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName("パスワード変更で版が進んだ後は、古い版のトークンでは認証されない")
+    void tokenWithOldVersionDoesNotAuthenticate() throws Exception {
+        String oldToken = validTokenForAlice();
+        aliceTokenVersion = 1;
+
+        run("Bearer " + oldToken);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName("新しい版で発行したトークンは認証される")
+    void tokenWithCurrentVersionAuthenticates() throws Exception {
+        aliceTokenVersion = 3;
+
+        run("Bearer " + tokenProvider.generateToken("alice", 3));
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("ログアウトで無効にしたトークンは認証されない")
+    void revokedTokenDoesNotAuthenticate() throws Exception {
+        String token = validTokenForAlice();
+        revoked.add(tokenProvider.parseClaims(token).getId());
+
+        run("Bearer " + token);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName("jti と版を持たない旧形式のトークンも、期限内なら版 0 として認証される")
+    void legacyTokenWithoutClaimsAuthenticates() throws Exception {
+        String legacy = Jwts.builder()
+                .subject("alice")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 60_000))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
+                .compact();
+
+        run("Bearer " + legacy);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("UserPrincipal 以外の利用者情報では版の照合をせずに認証する")
+    void nonPrincipalUserDetailsSkipsVersionCheck() throws Exception {
+        run("Bearer " + tokenProvider.generateToken("bob", 7));
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
     }
 }

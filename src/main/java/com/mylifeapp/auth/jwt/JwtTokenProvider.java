@@ -1,5 +1,7 @@
 package com.mylifeapp.auth.jwt;
 
+import com.mylifeapp.auth.userdetails.UserPrincipal;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -17,11 +19,14 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.HexFormat;
+import java.util.UUID;
 
 @Component
 public class JwtTokenProvider {
 
     private static final Logger log = LoggerFactory.getLogger(JwtTokenProvider.class);
+
+    static final String CLAIM_TOKEN_VERSION = "ver";
 
     private final SecretKey secretKey;
     private final long expirationMs;
@@ -40,27 +45,52 @@ public class JwtTokenProvider {
                 keyBytes.length, fingerprint(keyBytes), this.expirationMs);
     }
 
-    /** トークン生成 */
+    /** トークン生成（ログイン時）。認証済みの UserPrincipal からトークンの版を取る。 */
     public String generateToken(Authentication authentication) {
+        int tokenVersion = authentication.getPrincipal() instanceof UserPrincipal principal
+                ? principal.getTokenVersion()
+                : 0;
+        return generateToken(authentication.getName(), tokenVersion);
+    }
+
+    /**
+     * トークン生成。
+     *
+     * <p>jti（トークンごとの ID）はログアウトでこのトークンだけを無効にするため、
+     * ver（トークンの版）はパスワード変更で全端末のトークンをまとめて無効にするために埋め込む。
+     */
+    public String generateToken(String username, int tokenVersion) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .subject(authentication.getName())
+                .id(UUID.randomUUID().toString())
+                .subject(username)
+                .claim(CLAIM_TOKEN_VERSION, tokenVersion)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey, Jwts.SIG.HS256)
                 .compact();
     }
 
-    /** トークンからユーザー名を取得する。検証に失敗した場合は例外を投げる。 */
-    public String getUsernameFromJWT(String token) {
+    /** トークンの中身を取り出す。検証に失敗した場合は例外を投げる（先に validateToken で確かめること）。 */
+    public Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+                .getPayload();
+    }
+
+    /** トークンの版。版を埋め込む前に発行したトークンは 0 として扱う（users.token_version の初期値と同じ）。 */
+    public static int tokenVersionOf(Claims claims) {
+        Integer version = claims.get(CLAIM_TOKEN_VERSION, Integer.class);
+        return version == null ? 0 : version;
+    }
+
+    /** トークンからユーザー名を取得する。検証に失敗した場合は例外を投げる。 */
+    public String getUsernameFromJWT(String token) {
+        return parseClaims(token).getSubject();
     }
 
     /**

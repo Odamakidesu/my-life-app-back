@@ -51,3 +51,24 @@ WHERE EXISTS (SELECT 1 FROM users u WHERE u.id = seed.user_id)
     SELECT 1 FROM note n WHERE n.user_id = seed.user_id AND n.title = seed.title
 )
 ORDER BY seed.ord;
+
+-- メモとタグの対応（note_tags。V7 以降はこちらが正で、note.tags は旧版のための写し）。
+-- 見本のメモは V8 の移行より後に入るので、ここで対応を張る。
+INSERT IGNORE INTO note_tags (note_id, tag_id, sort_order)
+SELECT n.id, t.id, seed.sort_order
+FROM (
+    SELECT 2 AS user_id, '会議の準備' AS title, '仕事' AS tag, 0 AS sort_order
+    UNION ALL SELECT 2, '家族とディナー', 'プライベート', 0
+    UNION ALL SELECT 2, 'Javaの復習', '勉強', 0
+    UNION ALL SELECT 2, 'スーパーで買い物', '買い物', 0
+    UNION ALL SELECT 2, 'プロジェクト進捗確認', '仕事', 0
+    UNION ALL SELECT 2, 'プロジェクト進捗確認', 'プライベート', 1
+    UNION ALL SELECT 2, '読書時間', '勉強', 0
+    UNION ALL SELECT 2, '読書時間', 'プライベート', 1
+    UNION ALL SELECT 2, 'ネットショッピング', '買い物', 0
+    UNION ALL SELECT 2, 'チームのコードレビュー', '仕事', 0
+    UNION ALL SELECT 2, '散歩に出かける', 'プライベート', 0
+    UNION ALL SELECT 1, '定例会議', '仕事', 0
+) AS seed
+JOIN note n ON n.user_id = seed.user_id AND n.title = seed.title
+JOIN tags t ON t.user_id IS NULL AND t.name = seed.tag;

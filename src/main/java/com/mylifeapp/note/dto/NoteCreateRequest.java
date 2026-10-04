@@ -3,6 +3,8 @@ package com.mylifeapp.note.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import com.mylifeapp.note.entity.Recurrence;
+
 import java.time.LocalDateTime;
 
 /**
@@ -19,12 +21,15 @@ public record NoteCreateRequest(
         String title,
 
         @NotBlank(message = "本文は必須です")
-        @Size(max = 255, message = "本文は255文字以内で入力してください")
+        @Size(max = NoteLimits.CONTENT_MAX_LENGTH, message = "本文は10000文字以内で入力してください")
         String content,
 
         String tags,
         LocalDateTime deadline,
         Boolean isImportant,
-        Boolean isPinned
+        Boolean isPinned,
+
+        /** 繰り返しの間隔。null は繰り返さない。締切が無いと 400 */
+        Recurrence recurrence
 ) {
 }
