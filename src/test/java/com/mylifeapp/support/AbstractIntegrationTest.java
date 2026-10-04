@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,6 +33,17 @@ public abstract class AbstractIntegrationTest {
         MYSQL.start();
     }
 
+    /**
+     * 同じコンテナ内の任意のデータベースへの root 接続。
+     * 本体のテスト用 DB とは別のデータベースを作って、Flyway の適用経路を検証するために使う。
+     * root のパスワードは Testcontainers がアプリ用ユーザーと同じ値にする。
+     */
+    protected static DriverManagerDataSource rootDataSource(String database) {
+        String url = String.format("jdbc:mysql://%s:%d/%s",
+                MYSQL.getHost(), MYSQL.getMappedPort(MySQLContainer.MYSQL_PORT), database);
+        return new DriverManagerDataSource(url, "root", MYSQL.getPassword());
+    }
+
     @DynamicPropertySource
     static void datasourceProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
@@ -48,7 +60,7 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected JdbcTemplate jdbcTemplate;
 
-    /** data.sql が投入するローカル専用ユーザーのパスワード。 */
+    /** 開発用シード（db/seed/R__local_seed.sql）が投入するローカル専用ユーザーのパスワード。 */
     protected static final String SEEDED_PASSWORD = "testpass";
 
     protected String json(Object value) throws Exception {

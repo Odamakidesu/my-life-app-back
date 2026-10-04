@@ -11,10 +11,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * シードデータの文字コード。
  *
- * <p>spring.sql.init.encoding を指定しないと、Spring は data.sql を
- * JVM の既定文字コードで読む。開発機は gradle.properties で
- * -Dfile.encoding=MS932 を指定しているため、指定が無いと
- * UTF-8 のファイルが MS932 として解釈され、日本語が壊れた状態で DB に入る。
+ * <p>SQL ファイルの文字コードを指定しないと、JVM の既定文字コードで読まれる。
+ * 開発機は gradle.properties で -Dfile.encoding=MS932 を指定しているため、
+ * UTF-8 のシード（現在は db/seed/R__local_seed.sql、以前は data.sql）が MS932 として解釈され、
+ * 日本語が壊れた状態で DB に入る。現在は spring.flyway.encoding=UTF-8 で防いでいる。
  *
  * <p>実際にこれで開発用 DB の tags と note のシードデータが全滅した。
  * DB へは「正しい UTF-8 として」壊れた文字が保存されるので、
@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SeedDataEncodingTest extends AbstractIntegrationTest {
 
     @Test
-    @DisplayName("data.sql のタグ名が文字化けせずに保存されている")
+    @DisplayName("開発用シードのタグ名が文字化けせずに保存されている")
     void seededTagNamesAreNotMojibake() {
         List<String> names = jdbcTemplate.queryForList(
                 "SELECT name FROM tags ORDER BY id", String.class);
@@ -36,7 +36,7 @@ class SeedDataEncodingTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("data.sql のメモ本文が文字化けせずに保存されている")
+    @DisplayName("開発用シードのメモ本文が文字化けせずに保存されている")
     void seededNoteTextIsNotMojibake() {
         String title = jdbcTemplate.queryForObject(
                 "SELECT title FROM note WHERE id = 1", String.class);

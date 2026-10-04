@@ -11,8 +11,12 @@ GitHub の設定変更が必要な項目で、**コードをデプロイする�
 
 `note` テーブルに所有者列 `user_id` を追加した。**これが無い状態では新しいコードは起動後に失敗する。**
 
-`schema.sql` はローカル開発専用（`spring.sql.init.mode` の既定を `never` に変えたため、
-本番では実行されない）。本番のスキーマは手動で移行する。
+> **2026-10 追記**: スキーマは Flyway で管理するようになった（`src/main/resources/db/migration`）。
+> Flyway は導入前の本番 DB を「V1（= この節の移行を済ませた状態）まで適用済み」として扱い、V2 以降を起動時に自動で流す。
+> **この節の移行を済ませていない DB に新しいアプリを当てると、V1 が飛ばされたまま起動に失敗する。**
+> 先にこの節を済ませること。
+
+以下は Flyway 導入前の手順。本番のスキーマはこのとき手動で移行した。
 
 ### 移行前に決めること
 
@@ -51,7 +55,7 @@ EXPLAIN SELECT * FROM note WHERE user_id = <OWNER_ID> AND delete_flg = false
 --    type=ref / key=idx_note_user_active になっていること（ALL なら効いていない）
 ```
 
-あわせて `users.role` を `NOT NULL DEFAULT 'USER'` にしておく（`schema.sql` に合わせる）。
+あわせて `users.role` を `NOT NULL DEFAULT 'USER'` にしておく（`db/migration/V1__init.sql` に合わせる）。
 
 ```sql
 UPDATE users SET role = 'USER' WHERE role IS NULL;
@@ -231,8 +235,8 @@ PUT /api/admin/users/{id}/role      {"role": "ADMIN"}
 PUT /api/admin/users/{id}/enabled   {"enabled": false}
 ```
 
-`data.sql` に入っている `admin` / `testuser`（パスワード `testpass`）は
-**ローカル開発専用**で、本番では実行されない（`spring.sql.init.mode=never`）。
+開発用シード（`db/seed/R__local_seed.sql`）に入っている `admin` / `testuser`（パスワード `testpass`）は
+**ローカル開発専用**で、本番では実行されない（本番の `spring.flyway.locations` は `classpath:db/migration` だけ）。
 
 ---
 

@@ -30,14 +30,11 @@ server.port=8081
 # 開発に必要な緩和はこのファイルだけで行う。
 # ============================================================================
 
-# スキーマとシードの投入は「明示的に実行したときだけ」にする。
-# always にすると起動のたびに schema.sql の DROP TABLE が走り、
-# 自分で作ったメモが毎回消える。気づきにくく、気づいた時には戻せない。
+# スキーマは起動時に Flyway が追いつかせる（未適用の db/migration だけが流れる。既存データは消えない）。
+# ローカルでは開発用シード（admin / testuser と見本のメモ）も入れる。何度起動しても重複しない。
 #
-# 投入し直したいときは次のどちらか:
-#   ./scripts/reseed-local-db.sh                              （推奨。投入後に検証まで行う）
-#   ./gradlew bootRun --args='--spring.sql.init.mode=always'   （その起動のときだけ投入する）
-spring.sql.init.mode=never
+# DB を空からやり直したいときは ./scripts/reseed-local-db.sh を実行してから起動する。
+spring.flyway.locations=classpath:db/migration,classpath:db/seed
 
 # SQL とバインド値を見るための設定。バインド値にはパスワードハッシュやメモ本文が含まれる。
 # 本番で有効にすると CloudWatch Logs に個人データが全量流出する。

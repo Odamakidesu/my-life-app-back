@@ -3,7 +3,7 @@
 # 目的は「AWS に上げる前に、本番と同じ形で動くことを手元で確かめる」こと。
 # そのため設定は本番（ECS タスク定義）と同じく環境変数で注入し、
 # アプリ側は本番と同一のコードパスを通る。
-#   - SPRING_SQL_INIT_MODE=never（本番と同じ。スキーマ投入は DB の初期化スクリプトが行う）
+#   - スキーマは起動時に Flyway が作る・追いつかせる（本番と同じ経路。ローカルだけ開発用シードも入れる）
 #   - JWT_SECRET / SPRING_DATASOURCE_* を環境変数で注入
 #   - 非 root、MaxRAMPercentage 指定のイメージをそのまま使用
 #
@@ -71,9 +71,9 @@ services:
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-mylifeapp}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-localonly-app-password}
 
-      # 本番と同じ。schema.sql の先頭は DROP TABLE であり、
-      # ここを always にするとアプリ再起動のたびにデータが消える。
-      SPRING_SQL_INIT_MODE: never
+      # スキーマは起動時に Flyway が追いつかせる（既存データは消えない）。
+      # 本番との差分は開発用シード（db/seed）を足していることだけ。何度起動しても重複しない。
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration,classpath:db/seed
 
       # ローカル専用の署名鍵。実在の環境の値とは無関係で、外部に出しても影響がない。
       # 本番の鍵は SSM から注入される（docs/runbook-security-hardening.md 参照）。
