@@ -1,6 +1,7 @@
 package com.mylifeapp.auth.jwt;
 
 import com.mylifeapp.auth.userdetails.UserPrincipal;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,10 +36,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
+    private final TokenRevocationChecker revocationChecker;
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider,
+                                   UserDetailsService userDetailsService,
+                                   TokenRevocationChecker revocationChecker) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userDetailsService = userDetailsService;
+        this.revocationChecker = revocationChecker;
     }
 
     @Override
@@ -72,8 +77,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void authenticate(String token, HttpServletRequest request) {
         try {
-            String username = jwtTokenProvider.getUsernameFromJWT(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            Claims claims = jwtTokenProvider.parseClaims(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
+
+            // 署名も期限も正しいが、利用者の操作で無効にされたトークン。
+            //  * 版の不一致: パスワードを変えたので、それより前に発行した全端末のトークンを拒否する
+            //  * jti の失効: その端末でログアウトした
+            String revokedReason = revokedReason(claims, userDetails);
+            if (revokedReason != null) {
+                log.warn("jwt_rejected reason={} method={} path={}",
+                        revokedReason, request.getMethod(), request.getRequestURI());
+                SecurityContextHolder.clearContext();
+                return;
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
@@ -89,6 +105,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     request.getMethod(), request.getRequestURI());
             SecurityContextHolder.clearContext();
         }
+    }
+
+    private String revokedReason(Claims claims, UserDetails userDetails) {
+        if (userDetails instanceof UserPrincipal principal
+                && JwtTokenProvider.tokenVersionOf(claims) != principal.getTokenVersion()) {
+            return "TOKEN_VERSION_MISMATCH";
+        }
+        if (claims.getId() != null && revocationChecker.isRevoked(claims.getId())) {
+            return "LOGGED_OUT";
+        }
+        return null;
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

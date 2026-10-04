@@ -108,4 +108,27 @@ public abstract class AbstractIntegrationTest {
                 "SELECT id FROM note WHERE user_id = ? AND title = ? ORDER BY id DESC LIMIT 1",
                 Long.class, userId, title);
     }
+
+    /** 日本時間の現在から hours 時間後を、画面の datetime-local と同じ形（秒なし）で返す。 */
+    protected static String jstAfterHours(long hours) {
+        return java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Tokyo"))
+                .plusHours(hours)
+                .withSecond(0).withNano(0)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+    }
+
+    /** API でメモを作って ID を返す（note_tags も API と同じ経路で張られる）。 */
+    protected long createNote(String token, String title, String tags, String deadline, String extraJson)
+            throws Exception {
+        String body = "{\"title\":\"" + title + "\",\"content\":\"本文\",\"tags\":\"" + tags + "\","
+                + "\"deadline\":" + (deadline == null ? "null" : "\"" + deadline + "\"")
+                + (extraJson == null ? "" : "," + extraJson) + "}";
+        String response = mockMvc.perform(post("/api/notes")
+                        .header("Authorization", bearer(token))
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(response).get("id").asLong();
+    }
 }

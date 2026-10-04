@@ -30,7 +30,7 @@ class SeedDataEncodingTest extends AbstractIntegrationTest {
     @DisplayName("開発用シードのタグ名が文字化けせずに保存されている")
     void seededTagNamesAreNotMojibake() {
         List<String> names = jdbcTemplate.queryForList(
-                "SELECT name FROM tags ORDER BY id", String.class);
+                "SELECT name FROM tags WHERE user_id IS NULL ORDER BY id", String.class);
 
         assertThat(names).containsExactly("仕事", "プライベート", "勉強", "買い物");
     }

@@ -1,5 +1,6 @@
 package com.mylifeapp.tag.service;
 
+import com.mylifeapp.common.web.BadRequestException;
 import com.mylifeapp.note.entity.Note;
 import com.mylifeapp.note.repository.NoteRepository;
 import com.mylifeapp.tag.dto.TagRequest;
@@ -7,11 +8,13 @@ import com.mylifeapp.tag.entity.Tag;
 import com.mylifeapp.tag.exception.DuplicateTagNameException;
 import com.mylifeapp.tag.exception.TagNotFoundException;
 import com.mylifeapp.tag.repository.TagRepository;
+import com.mylifeapp.tag.support.TagNames;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -26,6 +29,9 @@ import java.util.Set;
  */
 @Service
 public class TagService {
+
+    /** 名前だけで作られたタグの色（画面がタグの見つからない名前に使う既定色と同じ） */
+    static final String DEFAULT_COLOR = "#6c757d";
 
     private final TagRepository tagRepository;
     private final NoteRepository noteRepository;
@@ -59,8 +65,9 @@ public class TagService {
     /**
      * 改名・色変更。
      *
-     * <p>メモはタグを名前で持つため、改名したら自分のメモに付いている旧名も新名に置き換える。
-     * これをしないと、改名した瞬間にそのタグを付けたメモがタグ絞り込みから外れ、色も失う。
+     * <p>メモとタグの対応は note_tags が ID で持つので、改名はタグの行を変えるだけでメモに反映される。
+     * ただし旧版へ戻せるように書き続けている note.tags（名前の写し）も合わせて直す。
+     * この写しは次のリリースで列ごと削除する。
      */
     @Transactional
     public Tag update(Long userId, Long id, TagRequest request) {
@@ -87,6 +94,32 @@ public class TagService {
         if (tagRepository.softDeleteOwned(id, userId, LocalDateTime.now(clock)) == 0) {
             throw new TagNotFoundException(id);
         }
+    }
+
+    /**
+     * メモに付けるタグ名（正規化済み）を、付けた順のタグ ID に解決する。
+     *
+     * <p>まだ無い名前は自分のタグとして既定色で作る。画面はタグの一覧から選ばせるので通常は起きないが、
+     * API を直接使う場合や、以前の自由入力で付けた名前が残っている場合に、名前を黙って捨てないため。
+     */
+    @Transactional
+    public List<Long> resolveForNote(Long userId, List<String> names) {
+        List<Long> ids = new ArrayList<>(names.size());
+        for (String name : names) {
+            if (name.length() > TagNames.MAX_LENGTH) {
+                throw new BadRequestException("タグ名は" + TagNames.MAX_LENGTH + "文字以内にしてください: " + name);
+            }
+            Tag tag = tagRepository.findResolvable(userId, name).orElseGet(() -> {
+                Tag created = new Tag();
+                created.setUserId(userId);
+                created.setName(name);
+                created.setColor(DEFAULT_COLOR);
+                created.setDeleteFlg(false);
+                return tagRepository.save(created);
+            });
+            ids.add(tag.getId());
+        }
+        return ids;
     }
 
     private void requireUniqueName(Long userId, String name, Long excludeId) {

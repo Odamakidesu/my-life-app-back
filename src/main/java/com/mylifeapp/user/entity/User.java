@@ -4,6 +4,7 @@ import com.mylifeapp.user.entity.UserRole;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Setter
@@ -20,7 +21,12 @@ public class User {
 
     private UserRole role;
 
-
+    /**
+     * トークンの版。トークンに埋め込み、一致しないトークンは受け付けない。
+     * パスワードを変えると 1 増え、それより前に発行した全端末のトークンが無効になる。
+     */
+    @Column("token_version")
+    private int tokenVersion;
 
     // コンストラクタ、ゲッター・セッター
     public User() {}

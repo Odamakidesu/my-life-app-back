@@ -3,6 +3,7 @@ package com.mylifeapp.common.config;
 import tools.jackson.databind.ObjectMapper;
 import com.mylifeapp.auth.jwt.JwtAuthenticationFilter;
 import com.mylifeapp.auth.jwt.JwtTokenProvider;
+import com.mylifeapp.auth.session.RevokedTokenStore;
 import com.mylifeapp.auth.userdetails.CustomUserDetailsService;
 import com.mylifeapp.common.ratelimit.RateLimitFilter;
 import com.mylifeapp.common.ratelimit.RateLimitProperties;
@@ -43,6 +44,7 @@ public class SecurityConfig {
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final RateLimitProperties rateLimitProperties;
     private final ObjectMapper objectMapper;
+    private final RevokedTokenStore revokedTokenStore;
 
     @Value("${app.api.endpoint.base-url}")
     private String baseUrl;
@@ -60,13 +62,15 @@ public class SecurityConfig {
                           RestAuthenticationEntryPoint authenticationEntryPoint,
                           RestAccessDeniedHandler accessDeniedHandler,
                           RateLimitProperties rateLimitProperties,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          RevokedTokenStore revokedTokenStore) {
         this.userDetailsService = userDetailsService;
         this.jwtTokenProvider = jwtTokenProvider;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.rateLimitProperties = rateLimitProperties;
         this.objectMapper = objectMapper;
+        this.revokedTokenStore = revokedTokenStore;
     }
 
     @Bean
@@ -130,7 +134,7 @@ public class SecurityConfig {
      */
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
+        return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService, revokedTokenStore);
     }
 
     @Bean
@@ -168,7 +172,7 @@ public class SecurityConfig {
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // ワイルドカードは将来追加する内部ヘッダをブラウザ経由で注入する余地を残す。実際に使うものだけ許可する。
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        configuration.setExposedHeaders(List.of("X-Total-Count"));
+        configuration.setExposedHeaders(List.of("X-Total-Count", "Content-Disposition"));
         // 認証は Authorization ヘッダで行うため Cookie の送出許可は不要。
         // true のままにすると、トークンを Cookie に移した瞬間に CSRF が成立する。
         configuration.setAllowCredentials(false);
