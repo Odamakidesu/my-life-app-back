@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -53,6 +54,26 @@ public class NoteController {
 
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(noteService.countActive(userId)))
+                .body(body);
+    }
+
+    /**
+     * ゴミ箱（論理削除済みのメモ）の一覧。形は {@link #getAllNotes} と同じ。
+     * 復元は既存の PUT /{id}/deleted に delete_flg=false を送る。
+     */
+    @GetMapping("/deleted")
+    public ResponseEntity<List<NoteResponse>> getDeletedNotes(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "" + NoteService.DEFAULT_PAGE_SIZE) int size) {
+
+        Long userId = principal.getUserId();
+        List<NoteResponse> body = noteService.findDeleted(userId, page, size).stream()
+                .map(NoteResponse::from)
+                .toList();
+
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(noteService.countDeleted(userId)))
                 .body(body);
     }
 
@@ -102,5 +123,13 @@ public class NoteController {
                                                  @Valid @RequestBody DeletedUpdateRequest request) {
         noteService.setDeleted(principal.getUserId(), id, request.deleteFlg());
         return ResponseEntity.ok().build();
+    }
+
+    /** ゴミ箱にあるメモを完全に削除する（ゴミ箱に無いメモは 404） */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteNotePermanently(@AuthenticationPrincipal UserPrincipal principal,
+                                                      @PathVariable Long id) {
+        noteService.deletePermanently(principal.getUserId(), id);
+        return ResponseEntity.noContent().build();
     }
 }

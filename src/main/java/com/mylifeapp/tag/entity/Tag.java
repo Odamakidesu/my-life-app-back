@@ -25,6 +25,13 @@ public class Tag {
     @Id
     private Long id;
 
+    /**
+     * 所有者。NULL は全ユーザー共通のタグ（初期データ）で、利用者は編集できない。
+     * 利用者が作ったタグは自分にだけ見え、自分だけが編集・削除できる。
+     */
+    @Column("user_id")
+    private Long userId;
+
     private String name;
     private String color;
 

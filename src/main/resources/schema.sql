@@ -22,11 +22,16 @@ CREATE TABLE users (
 
 CREATE TABLE tags (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  -- 所有者。NULL は全ユーザー共通のタグ（初期データ）で、利用者は編集できない。
+  user_id BIGINT NULL,
   name VARCHAR(50) NOT NULL,
   color VARCHAR(20) NOT NULL,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
-  delete_flg TINYINT(1) NOT NULL
+  delete_flg TINYINT(1) NOT NULL,
+  CONSTRAINT fk_tags_user FOREIGN KEY (user_id) REFERENCES users (id),
+  -- 一覧クエリ (WHERE delete_flg = false AND (user_id IS NULL OR user_id = ?)) 用。
+  INDEX idx_tags_user_active (user_id, delete_flg)
 );
 
 CREATE TABLE note (

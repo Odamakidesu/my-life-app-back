@@ -2,6 +2,8 @@ package com.mylifeapp.common.web;
 
 import com.mylifeapp.common.observability.TraceIds;
 import com.mylifeapp.note.exception.NoteNotFoundException;
+import com.mylifeapp.tag.exception.DuplicateTagNameException;
+import com.mylifeapp.tag.exception.TagNotFoundException;
 import com.mylifeapp.user.exception.DuplicateUsernameException;
 import com.mylifeapp.user.exception.UserNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,6 +39,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoteNotFoundException.class)
     public ResponseEntity<ApiError> handleNoteNotFound(NoteNotFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(TagNotFoundException.class)
+    public ResponseEntity<ApiError> handleTagNotFound(TagNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DuplicateTagNameException.class)
+    public ResponseEntity<ApiError> handleDuplicateTagName(DuplicateTagNameException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
     }
 
     @ExceptionHandler(UserNotFoundException.class)

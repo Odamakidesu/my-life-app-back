@@ -40,6 +40,24 @@ public interface NoteRepository extends CrudRepository<Note, Long> {
     @Query("SELECT COUNT(*) FROM note WHERE user_id = :userId AND delete_flg = false")
     long countActiveByUserId(@Param("userId") Long userId);
 
+    /**
+     * ゴミ箱（自分の論理削除済みメモ）を取得する。
+     *
+     * <p>有効なメモの一覧と同じく idx_note_user_active (user_id, delete_flg, created_at) が効く。
+     */
+    @Query("""
+            SELECT * FROM note
+            WHERE user_id = :userId AND delete_flg = true
+            ORDER BY created_at DESC, id DESC
+            LIMIT :limit OFFSET :offset
+            """)
+    List<Note> findDeletedByUserId(@Param("userId") Long userId,
+                                   @Param("limit") int limit,
+                                   @Param("offset") long offset);
+
+    @Query("SELECT COUNT(*) FROM note WHERE user_id = :userId AND delete_flg = true")
+    long countDeletedByUserId(@Param("userId") Long userId);
+
     @Query("SELECT * FROM note WHERE id = :id AND user_id = :userId")
     Optional<Note> findByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
@@ -78,4 +96,28 @@ public interface NoteRepository extends CrudRepository<Note, Long> {
     @Modifying
     @Query("UPDATE note SET delete_flg = :value WHERE id = :id AND user_id = :userId")
     int updateDeleteFlg(@Param("id") Long id, @Param("userId") Long userId, @Param("value") boolean value);
+
+    /**
+     * ゴミ箱にあるメモを物理削除する。
+     *
+     * <p>delete_flg = true を条件に含めるのは、一覧に出ているメモを
+     * 誤操作や古い画面からの要求で一気に消せないようにするため。
+     * 物理削除は取り消せないので、必ずゴミ箱を経由させる。
+     */
+    @Modifying
+    @Query("DELETE FROM note WHERE id = :id AND user_id = :userId AND delete_flg = true")
+    int deletePermanently(@Param("id") Long id, @Param("userId") Long userId);
+
+    /**
+     * タグ名を含み得る自分のメモ（論理削除済みも含む）。
+     *
+     * <p>LIKE は候補の絞り込みにだけ使う。名前に % や _ が含まれると余分に拾うが、
+     * 呼び出し側でカンマ区切りの要素ごとに完全一致で判定し直すので結果は変わらない。
+     */
+    @Query("SELECT * FROM note WHERE user_id = :userId AND tags LIKE CONCAT('%', :name, '%')")
+    List<Note> findByUserIdAndTagsContaining(@Param("userId") Long userId, @Param("name") String name);
+
+    @Modifying
+    @Query("UPDATE note SET tags = :tags WHERE id = :id AND user_id = :userId")
+    int updateTags(@Param("id") Long id, @Param("userId") Long userId, @Param("tags") String tags);
 }

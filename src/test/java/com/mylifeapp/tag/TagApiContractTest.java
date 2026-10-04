@@ -21,13 +21,16 @@ class TagApiContractTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("一覧は id / name / color だけを返し、永続化の項目を出さない")
+    @DisplayName("一覧は id / name / color / editable だけを返し、永続化の項目を出さない")
     void listExposesOnlyContractFields() throws Exception {
         mockMvc.perform(get("/api/tags").header("Authorization", bearer(token("tag-contract"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").exists())
                 .andExpect(jsonPath("$[0].name").exists())
                 .andExpect(jsonPath("$[0].color").exists())
+                .andExpect(jsonPath("$[0].editable").isBoolean())
+                .andExpect(jsonPath("$[0].user_id").doesNotExist())
+                .andExpect(jsonPath("$[0].userId").doesNotExist())
                 .andExpect(jsonPath("$[0].created_at").doesNotExist())
                 .andExpect(jsonPath("$[0].updated_at").doesNotExist())
                 .andExpect(jsonPath("$[0].delete_flg").doesNotExist())
