@@ -1,16 +1,13 @@
--- このファイルは UTF-8。送信するバイト列の解釈をサーバに明示する。
--- これが無いと、mysql クライアントの既定文字セット（環境により latin1）で
--- 解釈され、日本語が化けたまま保存される。実際に docker の初期化で発生した。
+-- 初期スキーマ（Flyway 導入時点の本番スキーマ。タグの所有者列は V2 で追加する）。
+--
+-- Flyway 導入前から存在する DB（本番・既存のローカル Docker）では、このファイルは実行されない。
+-- spring.flyway.baseline-on-migrate=true / baseline-version=1 により「V1 まで適用済み」として記録され、
+-- V2 以降だけが適用される。空の DB（新しい Docker ボリューム・テスト）ではここから作られる。
+--
+-- 適用済みのマイグレーションは書き換えないこと（チェックサム不一致で起動に失敗する）。
+-- 変更は必ず新しい V<n>__*.sql を追加して行う。
+
 SET NAMES utf8mb4;
-
--- 開発用スキーマ。spring.sql.init.mode=always のときだけ実行される。
--- 既定は never（application.properties）で、local プロファイルだけが always に上書きする。
--- 本番では絶対に実行されない。本番のスキーマ変更は docs/runbook-security-hardening.md の手順に従うこと。
-
--- DROP は外部キーの子から先に行う。
-DROP TABLE IF EXISTS note;
-DROP TABLE IF EXISTS tags;
-DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
    id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -22,16 +19,11 @@ CREATE TABLE users (
 
 CREATE TABLE tags (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  -- 所有者。NULL は全ユーザー共通のタグ（初期データ）で、利用者は編集できない。
-  user_id BIGINT NULL,
   name VARCHAR(50) NOT NULL,
   color VARCHAR(20) NOT NULL,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
-  delete_flg TINYINT(1) NOT NULL,
-  CONSTRAINT fk_tags_user FOREIGN KEY (user_id) REFERENCES users (id),
-  -- 一覧クエリ (WHERE delete_flg = false AND (user_id IS NULL OR user_id = ?)) 用。
-  INDEX idx_tags_user_active (user_id, delete_flg)
+  delete_flg TINYINT(1) NOT NULL
 );
 
 CREATE TABLE note (

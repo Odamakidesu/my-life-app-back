@@ -9,8 +9,8 @@ AWS へ上げる前に、手元で認証・DB・バックエンドを本番と�
 | 項目 | この構成 | 本番（ECS） |
 |---|---|---|
 | 設定の注入 | 環境変数（docker-compose.yml） | 環境変数（ECS タスク定義の environment / secrets） |
-| `SPRING_SQL_INIT_MODE` | `never` | `never` |
-| DB スキーマ投入 | DB イメージの初期化スクリプト（初回のみ） | 手動マイグレーション |
+| DB スキーマ投入 | 起動時に Flyway（`db/migration`） | 起動時に Flyway（`db/migration`） |
+| 開発用シード | 起動時に Flyway（`db/seed`、何度流しても重複しない） | 入れない |
 | 実行ユーザー | 非 root (`app`) | 非 root (`app`) |
 | CPU / メモリ | 0.5 vCPU / 1024MB | cpu=512 / memory=1024 |
 | 実効ヒープ | 約 718MB（`MaxRAMPercentage=70`） | 約 718MB |
@@ -52,7 +52,7 @@ docker compose down -v && docker compose up -d --build
 
 ## 初期ユーザー
 
-`data.sql` が投入する**ローカル専用**のユーザー。本番では実行されない。
+`db/seed/R__local_seed.sql` が投入する**ローカル専用**のユーザー。本番では実行されない。
 
 | ユーザー名 | パスワード | 権限 |
 |---|---|---|
@@ -154,39 +154,33 @@ cp src/main/resources/application-local.properties.example \n   src/main/resourc
 
 ### スキーマとシードの投入
 
-`spring.sql.init.mode` は **`never`** にしてある。`always` にすると
-起動のたびに `schema.sql` の `DROP TABLE` が走り、自分で作ったメモが毎回消える。
-エラーにならないので気づきにくく、気づいた時には戻せない。
+スキーマは Flyway が管理する。アプリを起動すると `src/main/resources/db/migration` の
+未適用の `V<n>__*.sql` だけが流れる。既存のデータは消えない。
+ローカルでは `spring.flyway.locations` に `classpath:db/seed` も入れてあり、
+開発用ユーザーと見本のメモが「無ければ入る」。
 
-投入し直したいときだけ明示的に実行する。
+スキーマを変えるときは、適用済みのファイルを書き換えずに次の番号の `V<n>__*.sql` を追加する
+（書き換えるとチェックサム不一致で起動に失敗する）。
+
+Flyway 導入前から使っている DB は、初回起動時に「V1 まで適用済み」として記録され、
+V2 以降だけが流れる（`spring.flyway.baseline-on-migrate`）。
+
+データを捨てて空からやり直したいときだけ、次を実行してから起動する。
 
 ```bash
 ./scripts/reseed-local-db.sh          # 確認プロンプトあり
 ./scripts/reseed-local-db.sh --yes    # 確認なし
 ```
 
-このスクリプトは接続先を `application-local.properties` から読み、
-`schema.sql` → `data.sql` を流したあと、**件数だけでなく文字化けの有無まで検証する**。
-文字化けしても INSERT は成功するため、件数の確認だけでは検知できない。
-
-その場かぎりで投入したい場合は起動時に上書きしてもよい。
-
-```bash
-./gradlew bootRun --args='--spring.sql.init.mode=always'
-```
-
-空の DB に対して `never` のまま起動すると
-`Table 'mylifeapp.note' doesn't exist` で失敗する。その場合も上のコマンドで投入する。
-
 ### 文字コードについて
 
-`schema.sql` / `data.sql` は UTF-8 で、先頭に `SET NAMES utf8mb4;` がある。
+`db/migration` / `db/seed` の SQL は UTF-8 で、先頭に `SET NAMES utf8mb4;` がある。
 これが無いと、読み込む側の既定文字コード次第で日本語が化けたまま保存される。
 実際に次の2通りで発生した。
 
 | 経路 | 化けた原因 | 対策 |
 |---|---|---|
-| Spring の `spring.sql.init` | `spring.sql.init.encoding` 未指定で JVM 既定（MS932）で読んでいた | `application.properties` に `spring.sql.init.encoding=UTF-8` |
+| Spring の `spring.sql.init`（Flyway 導入前） | `spring.sql.init.encoding` 未指定で JVM 既定（MS932）で読んでいた | 現在は `application.properties` の `spring.flyway.encoding=UTF-8` |
 | MySQL の初期化スクリプト | mysql クライアントの既定文字セットが latin1 だった | SQL 先頭の `SET NAMES utf8mb4;` と `docker/mysql/my.cnf` |
 
 どちらも「DB には正しい UTF-8 として化けた文字が保存される」ため、

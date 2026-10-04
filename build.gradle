@@ -50,6 +50,11 @@ dependencies {
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
     runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // スキーマ管理。起動時に src/main/resources/db/migration の未適用分を流す。
+    // Flyway 10 以降は MySQL 対応が別モジュールに分かれたため flyway-mysql も要る。
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    runtimeOnly 'org.flywaydb:flyway-mysql'
     annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 

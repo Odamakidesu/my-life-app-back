@@ -10,4 +10,4 @@
 #   spring.datasource.username  <- SPRING_DATASOURCE_USERNAME
 #   spring.datasource.password  <- SPRING_DATASOURCE_PASSWORD   (secrets)
 #   jwt.secret                  <- JWT_SECRET                   (secrets)
-#   spring.sql.init.mode        <- SPRING_SQL_INIT_MODE
+#   spring.flyway.locations     <- 設定しないこと（既定の db/migration のみ。db/seed を足すと開発用ユーザーが入る）
