@@ -20,10 +20,10 @@ public class TagSaveCallback implements BeforeSaveCallback<Tag> {
     @Override
     public Tag onBeforeSave(Tag tag, MutableAggregateChange<Tag> aggregateChange) {
         LocalDateTime now = LocalDateTime.now(clock);
-        if (tag.getCreated_at() == null) {
-            tag.setCreated_at(now);
+        if (tag.getCreatedAt() == null) {
+            tag.setCreatedAt(now);
         }
-        tag.setUpdated_at(now);
+        tag.setUpdatedAt(now);
         return tag;
     }
 }

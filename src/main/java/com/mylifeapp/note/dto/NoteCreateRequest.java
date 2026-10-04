@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  */
 public record NoteCreateRequest(
         @NotBlank(message = "タイトルは必須です")
-        @Size(max = 255, message = "タイトルは255文字以内で入力してください")
+        @Size(max = 50, message = "タイトルは50文字以内で入力してください")
         String title,
 
         @NotBlank(message = "本文は必須です")
