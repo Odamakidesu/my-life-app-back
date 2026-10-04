@@ -3,21 +3,40 @@ package com.mylifeapp.tag.model;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
+
 import java.time.LocalDateTime;
 
+/**
+ * タグ。
+ *
+ * <p>フィールドは camelCase に統一し、DB 列名は {@code @Column} で明示する（Note と同じ流儀）。
+ * 以前は created_at / delete_flg をそのままフィールド名にしており、
+ * さらにこのクラスを API の応答に直接使っていたため、それらが JSON に出ていた。
+ *
+ * <p>このクラスは永続化の型であり、HTTP の入出力には使わない。レスポンスは TagResponse を使う。
+ */
+@Table("tags")
 @Getter
 @Setter
-@Table(name = "tags")
 public class Tag {
+
     @Id
     private Long id;
+
     private String name;
     private String color;
-    private LocalDateTime created_at;
-    private LocalDateTime updated_at;
-    private Boolean delete_flg;
 
-    // 引数なしコンストラクタだけ残す
-    public Tag() {}
+    @Column("created_at")
+    private LocalDateTime createdAt;
+
+    @Column("updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column("delete_flg")
+    private Boolean deleteFlg = false;
+
+    public Tag() {
+    }
 }

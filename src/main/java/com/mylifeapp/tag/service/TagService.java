@@ -3,10 +3,9 @@ package com.mylifeapp.tag.service;
 import com.mylifeapp.tag.model.Tag;
 import com.mylifeapp.tag.repository.TagRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Service
 public class TagService {
@@ -17,9 +16,8 @@ public class TagService {
         this.tagRepository = tagRepository;
     }
 
-    public List<Tag> getAllTags() {
-        return StreamSupport
-                .stream(tagRepository.findAll().spliterator(), false)
-                .collect(Collectors.toList());
+    @Transactional(readOnly = true)
+    public List<Tag> getActiveTags() {
+        return tagRepository.findActive();
     }
 }
