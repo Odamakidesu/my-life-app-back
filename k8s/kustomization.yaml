@@ -1,0 +1,33 @@
+# ローカルの Kubernetes（Docker Desktop）で MyLifeApp を動かすための一式。
+#
+# 適用:   kubectl apply -k k8s/
+# 削除:   kubectl delete -k k8s/   （DB のデータ用 PVC も消える）
+#
+# 手順と、試してみると面白い操作は docs/kubernetes.md を参照。
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mylifeapp
+
+resources:
+  - namespace.yaml
+  - mysql.yaml
+  - backend.yaml
+  - front.yaml
+
+# パスワードと署名鍵はローカル専用の値。docker-compose.yml の既定値と同じで、
+# 実在の環境とは無関係。生成される Secret 名には内容のハッシュが付くため、
+# 値を変えて apply し直すと、参照している Pod が自動で作り直される。
+secretGenerator:
+  - name: mysql
+    literals:
+      - MYSQL_ROOT_PASSWORD=localonly-root-password
+      - MYSQL_PASSWORD=localonly-app-password
+  - name: backend
+    literals:
+      - JWT_SECRET=local-docker-only-signing-key-not-for-any-real-environment-0123456789
+
+configMapGenerator:
+  - name: front-nginx
+    files:
+      - default.conf=front/nginx.conf

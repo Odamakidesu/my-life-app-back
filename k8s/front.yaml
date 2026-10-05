@@ -1,0 +1,55 @@
+# フロントエンド（ビルド済みの静的ファイル + nginx）。
+# nginx が /api/ をバックエンドに中継するので、ブラウザから見ると画面と API が同じオリジンになる。
+apiVersion: v1
+kind: Service
+metadata:
+  name: front
+spec:
+  # Docker Desktop の Kubernetes では LoadBalancer が localhost に公開される。
+  # 手元の 8080（別プロセス）と 8081（docker compose の backend）を避けて 8090 にしている。
+  type: LoadBalancer
+  selector:
+    app: front
+  ports:
+    - port: 8090
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: front
+  template:
+    metadata:
+      labels:
+        app: front
+    spec:
+      containers:
+        - name: front
+          # k8s/front/Dockerfile で作るイメージ（docs/kubernetes.md の手順2）。
+          image: mylifeapp-front:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: front-nginx
