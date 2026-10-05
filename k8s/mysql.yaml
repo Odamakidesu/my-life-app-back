@@ -1,0 +1,82 @@
+# MySQL。データを Pod の外（PersistentVolumeClaim）に置くため StatefulSet にしている。
+# Pod を消しても PVC は残るので、作り直された Pod は同じデータで起動する。
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  # クラスタ内からだけ「mysql:3306」で届けばよいので外には出さない。
+  selector:
+    app: mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0.42
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          env:
+            - name: MYSQL_DATABASE
+              value: mylifeapp
+            - name: MYSQL_USER
+              value: mylifeapp
+            - name: TZ
+              value: Asia/Tokyo
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: MYSQL_PASSWORD
+          ports:
+            - containerPort: 3306
+          # docker-compose.yml と同じ理由で、mysqladmin ping ではなく実クエリで確かめる
+          # （初期化中の一時サーバにも ping は通ってしまう）。
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysql -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -e 'SELECT 1' > /dev/null 2>&1
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

@@ -1,0 +1,7 @@
+# k8s/front/Dockerfile 専用の除外設定（BuildKit は <Dockerfile名>.dockerignore を優先して使う）。
+# 手元の node_modules（Windows 用のバイナリを含む）をイメージに持ち込まない。
+node_modules
+build
+.git
+.env.local
+.env.*.local

@@ -1,0 +1,91 @@
+# バックエンド（Spring Boot）。設定は docker-compose.yml の backend と同じ値を環境変数で渡す。
+# スキーマは起動時に Flyway が作るので、DB 側に初期化の手順は無い。
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  # 増やすときは kubectl scale deployment/backend --replicas=2 -n mylifeapp。
+  # Flyway は DB のロックで直列化されるので、同時に起動しても移行は二重に走らない。
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          # docker compose build backend で作ったイメージをそのまま使う。
+          # IfNotPresent なので、レジストリには取りに行かない。
+          image: mylifeapp-backend:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: docker
+            - name: TZ
+              value: Asia/Tokyo
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://mysql:3306/mylifeapp?serverTimezone=Asia/Tokyo&useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=3000&socketTimeout=30000
+            - name: SPRING_DATASOURCE_USERNAME
+              value: mylifeapp
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: MYSQL_PASSWORD
+            # ローカルなので開発用シード（admin / testuser）も入れる。
+            - name: SPRING_FLYWAY_LOCATIONS
+              value: classpath:db/migration,classpath:db/seed
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend
+                  key: JWT_SECRET
+            # 画面と API は同じオリジン（front の nginx が /api を中継）なので CORS は通常かからないが、
+            # 許可オリジンは画面の URL に合わせておく。
+            - name: APP_API_ENDPOINT_BASE_URL
+              value: http://localhost:8090
+            - name: APP_RATE_LIMIT_LOGIN_CAPACITY
+              value: "100"
+          ports:
+            - containerPort: 8080
+          # 本番（ECS: 0.5 vCPU / 1024MB）と同じ上限。Dockerfile の MaxRAMPercentage=70 はこの上限を基準にする。
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          # 起動（Flyway を含む）が終わるまでは liveness を止めておく。0.5 vCPU だと起動に1分前後かかる。
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 10
+          # readiness は DB 接続を含む。DB が落ちると Service から外れ、リクエストが流れなくなる。
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
